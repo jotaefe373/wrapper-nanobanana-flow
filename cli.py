@@ -51,7 +51,13 @@ def parse_args() -> argparse.Namespace:
     if args.prompt_file:
         if not args.prompt_file.exists():
             parser.error(f"Archivo no encontrado: {args.prompt_file}")
-        args.prompt = args.prompt_file.read_text(encoding="utf-8").strip()
+        content = args.prompt_file.read_text(encoding="utf-8").strip()
+        if args.prompt_file.suffix == ".json":
+            import json
+            data = json.loads(content)
+            args.prompt = data["prompt"]
+        else:
+            args.prompt = content
 
     return args
 

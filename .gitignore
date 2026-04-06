@@ -19,6 +19,9 @@ env/
 session/
 *.enc
 
+# Prompts generados
+prompts/
+
 # Output (imagenes generadas)
 output/
 

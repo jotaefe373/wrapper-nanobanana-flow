@@ -1,4 +1,4 @@
-.PHONY: setup login rec r rh rc rch ls key creds clean help
+.PHONY: setup login rec r rh rc rch t2i t2ih t2is t2ish ls key creds clean help
 
 VENV := .venv
 PY := $(VENV)/bin/python
@@ -41,6 +41,18 @@ rch: $(VENV) ## Replay headless con .enc (sin perfil)
 	$(NO_PROFILE)
 	$(PY) cli.py --replay $(if $(MACRO),$(MACRO),) --image $(IMAGE) $(PROMPT_ARG); \
 	STATUS=$$?; $(RESTORE_PROFILE); exit $$STATUS
+
+t2i: $(VENV) ## Text-to-image visible — make t2i PROMPT="x" o PROMPT_FILE=x.json
+	$(PY) cli.py --replay text-to-image2 $(PROMPT_ARG) --visible
+
+t2ih: $(VENV) ## Text-to-image headless — make t2ih PROMPT="x" o PROMPT_FILE=x.json
+	$(PY) cli.py --replay text-to-image2 $(PROMPT_ARG)
+
+t2is: $(VENV) ## Text-to-image stealth visible — make t2is PROMPT="x" o PROMPT_FILE=x.json
+	$(PY) cli.py --replay text-to-image2-stealth $(PROMPT_ARG) --visible
+
+t2ish: $(VENV) ## Text-to-image stealth headless — make t2ish PROMPT="x" o PROMPT_FILE=x.json
+	$(PY) cli.py --replay text-to-image2-stealth $(PROMPT_ARG)
 
 ls: $(VENV) ## Listar macros grabados
 	$(PY) cli.py --list
