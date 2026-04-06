@@ -1,0 +1,3 @@
+High-fidelity image restoration and upscaling only. Increase resolution, sharpness, and micro-detail to the maximum while preserving exact original structure. Apply natural color correction, balanced lighting, and extended dynamic range. Remove noise, blur, and compression artifacts. Preserve original textures, edges, and all fine details.
+
+Strict constraints: do not modify facial features, identity, proportions, geometry, composition, pose, expression, or background. No stylization, no enhancement that alters content, no reconstruction or reinterpretation. Output must be a higher-quality version of the exact same image.

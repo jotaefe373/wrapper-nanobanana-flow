@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flow-nanobanana"
+version = "0.1.0"
+description = "Lightweight wrapper for Google Labs Flow — image-to-image generation"
+requires-python = ">=3.11"
+dependencies = [
+    "playwright>=1.43.0",
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.3.0",
+    "python-dotenv>=1.0.0",
+    "cryptography>=42.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.4.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[project.scripts]
+flow-nano = "cli:main"
+
+[tool.ruff]
+line-length = 120
+
+[tool.setuptools.packages.find]
+include = ["core*", "flow*"]
