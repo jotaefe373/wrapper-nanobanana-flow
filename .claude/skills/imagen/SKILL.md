@@ -89,7 +89,10 @@ Despues de ejecutar:
 
 - El prompt SIEMPRE se escribe en ingles, sin importar el idioma del usuario
 - Aspect ratio: cuadrado (x1) — ya configurado en el macro
+- Calidad de descarga: 1K original por defecto; para 2K/4K reescalado, `FLOW_IMAGE_QUALITY=2K make t2ih ...`
 - Una imagen por ejecucion
 - Si el usuario pide algo imposible o poco estetico, sugiere alternativas
 - No inventes marcas si el usuario no las menciona
 - Timeout del comando: 300000ms (5 min)
+- Las cuentas rotan solas; no pases `ACCOUNT=` salvo que el usuario pida una cuenta especifica
+- Si el comando falla con "Ninguna cuenta pudo generar", muestra el mensaje al usuario: indica que cuenta renovar con `make login ACCOUNT=<nombre>` (requiere que el usuario inicie sesion a mano)
