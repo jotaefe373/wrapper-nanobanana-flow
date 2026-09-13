@@ -13,13 +13,11 @@ from pathlib import Path
 from cryptography.fernet import Fernet
 from playwright.async_api import async_playwright
 
+from core.accounts import credentials_path, profile_dir
 from core.config import settings
 from core.logger import get_logger
 
 log = get_logger("credentials")
-
-PROFILE_DIR = Path(settings.session_dir) / "chrome-profile"
-DEFAULT_CREDS_FILE = Path(settings.session_dir) / "credentials.enc"
 
 
 def generate_key() -> str:
@@ -33,49 +31,48 @@ def _get_key() -> bytes:
     if not key:
         raise ValueError(
             "FLOW_CREDENTIALS_KEY no definida.\n"
-            "Genera una con: make gen-key\n"
+            "Genera una con: make key\n"
             "Luego guardala en .env: FLOW_CREDENTIALS_KEY=<tu-clave>"
         )
     return key.encode()
 
 
-def _get_creds_path() -> Path:
-    """Obtiene la ruta del archivo de credenciales."""
-    path = settings.credentials_file
-    return Path(path) if path else DEFAULT_CREDS_FILE
-
-
-async def export_credentials(output_path: Path | None = None) -> Path:
-    """Extrae cookies del perfil Chrome y las guarda encriptadas."""
-    if not PROFILE_DIR.exists():
-        raise FileNotFoundError(f"No hay perfil en {PROFILE_DIR}. Ejecuta --login primero.")
-
-    key = _get_key()
-    out = output_path or _get_creds_path()
-
-    # Extraer solo cookies y origins de Google/Labs
-    log.info("Extrayendo cookies del perfil...")
-    async with async_playwright() as p:
-        context = await p.chromium.launch_persistent_context(
-            user_data_dir=str(PROFILE_DIR),
-            headless=True,
-            args=["--no-first-run", "--no-default-browser-check"],
-        )
-        state = await context.storage_state()
-        await context.close()
-
-    # Filtrar solo cookies de Google relevantes para Flow
+def filter_google_state(state: dict) -> dict:
+    """Deja solo cookies y origins de Google relevantes para Flow."""
     allowed_domains = [".google.com", "labs.google", ".google.cl", "accounts.google.com"]
-    filtered = {
+    return {
         "cookies": [
             c for c in state.get("cookies", [])
             if any(d in c.get("domain", "") for d in allowed_domains)
         ],
         "origins": [
             o for o in state.get("origins", [])
-            if "google" in o.get("origin", "").lower() or "labs.google" in o.get("origin", "").lower()
+            if "google" in o.get("origin", "").lower()
         ],
     }
+
+
+async def export_credentials(account: str, output_path: Path | None = None) -> Path:
+    """Extrae cookies del perfil Chrome de la cuenta y las guarda encriptadas."""
+    profile = profile_dir(account)
+    if not profile.exists():
+        raise FileNotFoundError(f"No hay perfil en {profile}. Ejecuta: make login ACCOUNT={account}")
+
+    key = _get_key()
+    out = output_path or credentials_path(account)
+
+    # Extraer solo cookies y origins de Google/Labs
+    log.info("Extrayendo cookies del perfil...")
+    async with async_playwright() as p:
+        context = await p.chromium.launch_persistent_context(
+            user_data_dir=str(profile),
+            headless=True,
+            args=["--no-first-run", "--no-default-browser-check"],
+        )
+        state = await context.storage_state()
+        await context.close()
+
+    filtered = filter_google_state(state)
 
     total = len(state.get("cookies", []))
     kept = len(filtered["cookies"])
@@ -92,9 +89,8 @@ async def export_credentials(output_path: Path | None = None) -> Path:
     return out
 
 
-def load_credentials(creds_path: Path | None = None) -> dict:
+def load_credentials(path: Path) -> dict:
     """Carga y desencripta credenciales. Retorna storage_state dict."""
-    path = creds_path or _get_creds_path()
     if not path.exists():
         raise FileNotFoundError(f"No hay credenciales en {path}. Exporta con --export-creds.")
 

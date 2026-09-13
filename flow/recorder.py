@@ -20,7 +20,6 @@ from core.logger import get_logger
 log = get_logger("recorder")
 
 RECORDINGS_DIR = Path(__file__).parent / "recordings"
-PROFILE_DIR = Path(settings.session_dir) / "chrome-profile"
 TEMP_STORAGE = Path(settings.session_dir) / "_codegen_state.json"
 
 WRAPPER_TEMPLATE = '''"""
@@ -44,9 +43,12 @@ async def recorded_flow(page, image_path: str, prompt: str):
 '''
 
 
-async def _export_storage_state() -> Path | None:
-    """Exporta cookies del perfil persistente a JSON para que codegen las use."""
-    if not PROFILE_DIR.exists():
+async def _export_storage_state(account: str) -> Path | None:
+    """Exporta cookies del perfil persistente de la cuenta a JSON para que codegen las use."""
+    from core.accounts import profile_dir
+
+    profile = profile_dir(account)
+    if not profile.exists():
         return None
 
     from playwright.async_api import async_playwright
@@ -55,7 +57,7 @@ async def _export_storage_state() -> Path | None:
     async with async_playwright() as p:
         # Lanzar con perfil persistente para leer cookies
         context = await p.chromium.launch_persistent_context(
-            user_data_dir=str(PROFILE_DIR),
+            user_data_dir=str(profile),
             headless=True,
             channel="chrome",
             args=["--no-first-run", "--no-default-browser-check"],
@@ -82,16 +84,18 @@ def _build_codegen_cmd(storage_path: Path | None = None) -> list[str]:
     return cmd
 
 
-def record(name: str | None = None) -> Path:
+def record(name: str | None = None, account: str | None = None) -> Path:
     """Abre playwright codegen para grabar un macro.
 
     El usuario interactua con Flow manualmente.
     Al cerrar el browser, el script se guarda en recordings/.
     """
+    from core.accounts import resolve_account
+
     # Exportar cookies del perfil persistente a JSON
-    storage_path = asyncio.run(_export_storage_state())
+    storage_path = asyncio.run(_export_storage_state(resolve_account(account)))
     if not storage_path:
-        log.warning("No hay perfil guardado. Ejecuta --login primero para autenticarte.")
+        log.warning("No hay perfil guardado. Ejecuta: make login ACCOUNT=<nombre>")
         log.info("Continuando sin sesion (tendras que hacer login en la grabacion)...")
 
     # Nombre del recording

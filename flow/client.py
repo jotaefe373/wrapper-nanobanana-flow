@@ -20,7 +20,8 @@ log = get_logger("client")
 class FlowClient:
     """Cliente para interactuar con Google Labs Flow."""
 
-    def __init__(self, headless: bool | None = None):
+    def __init__(self, account: str, headless: bool | None = None):
+        self.account = account
         self.headless = headless if headless is not None else settings.headless
         self._pw = None
         self._context: BrowserContext | None = None
@@ -36,7 +37,7 @@ class FlowClient:
     async def start(self) -> None:
         """Inicia Chrome con perfil persistente y navega a Flow."""
         self._pw = await async_playwright().start()
-        self._context = await launch_authenticated(self._pw, headless=self.headless)
+        self._context = await launch_authenticated(self._pw, self.account, headless=self.headless)
         self._page = self._context.pages[0] if self._context.pages else await self._context.new_page()
 
         log.info("Navegando a %s", settings.base_url)

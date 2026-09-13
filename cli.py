@@ -2,7 +2,8 @@
 cli.py — Entry point para flow-nanobanana.
 
 Uso:
-    python cli.py --login                                    # Primera vez: login manual
+    python cli.py --login --account otra                     # Login manual (crea o renueva una cuenta)
+    python cli.py --accounts                                 # Listar cuentas y proxima en rotar
     python cli.py --record                                   # Grabar macro
     python cli.py --record --name mi-flujo                   # Grabar macro con nombre
     python cli.py --replay --image foto.jpg --prompt "..."   # Replay del ultimo macro
@@ -11,6 +12,8 @@ Uso:
     python cli.py --image foto.jpg --prompt "..."            # Generar (modo directo)
     python cli.py --gen-key                                  # Generar clave de encriptacion
     python cli.py --export-creds                             # Exportar credenciales encriptadas
+
+Las generaciones rotan entre cuentas; --account fuerza una sola.
 """
 
 import argparse
@@ -33,6 +36,9 @@ def parse_args() -> argparse.Namespace:
     mode.add_argument("--replay", nargs="?", const="__latest__", metavar="MACRO",
                        help="Ejecutar macro grabado (sin nombre = el mas reciente)")
     mode.add_argument("--list", action="store_true", help="Listar macros grabados")
+    mode.add_argument("--accounts", action="store_true", help="Listar cuentas y la proxima en la rotacion")
+    mode.add_argument("--import-chrome", nargs="?", const="__list__", metavar="CORREO",
+                       help="Clonar la sesion de una cuenta de tu Chrome; sin valor lista las cuentas")
     mode.add_argument("--gen-key", action="store_true", help="Generar clave de encriptacion")
     mode.add_argument("--export-creds", action="store_true", help="Exportar credenciales encriptadas")
 
@@ -44,6 +50,8 @@ def parse_args() -> argparse.Namespace:
                         help="Ruta de salida (default: output/flow_result_<ts>.png)")
     parser.add_argument("--name", "-n", type=str, default=None, help="Nombre del macro (para --record)")
     parser.add_argument("--visible", action="store_true", help="Mostrar browser (no headless)")
+    parser.add_argument("--account", "-a", type=str, default=None,
+                        help="Cuenta a usar (default: rotar entre todas)")
 
     args = parser.parse_args()
 
@@ -65,16 +73,50 @@ def parse_args() -> argparse.Namespace:
 # ── Comandos ──────────────────────────────────────────────────────
 
 
-async def cmd_login():
-    from flow.auth import ensure_session
+async def cmd_login(account: str | None):
+    from core.accounts import resolve_account
+    from flow.auth import login
 
-    await ensure_session()
+    await login(resolve_account(account))
 
 
-def cmd_record(name: str | None):
+def cmd_accounts():
+    from core.accounts import has_credentials, has_profile, list_accounts, rotation_order
+
+    accounts = list_accounts()
+    if not accounts:
+        print("No hay cuentas. Crea una con: make login ACCOUNT=<nombre>")
+        return
+
+    next_account = rotation_order()[0]
+    print(f"\nCuentas ({len(accounts)}):\n")
+    for name in accounts:
+        sources = [s for s, ok in (("perfil", has_profile(name)), (".enc", has_credentials(name))) if ok]
+        marker = "  <- proxima" if name == next_account else ""
+        print(f"  {name:<20}  {', '.join(sources)}{marker}")
+    print()
+
+
+async def cmd_import_chrome(email: str, account: str | None):
+    from core.chrome_import import import_from_chrome, list_chrome_profiles
+
+    if email == "__list__":
+        print("\nCuentas en tu Chrome:\n")
+        for prof in list_chrome_profiles():
+            print(f"  {prof['dir']:<12}  {', '.join(prof['emails'])}")
+        print("\nUso: make importar CHROME=<correo> ACCOUNT=<nombre>\n")
+        return
+
+    if not account:
+        raise ValueError("Indica el nombre de la cuenta destino con ACCOUNT=<nombre> (o --account)")
+    url = await import_from_chrome(email, account)
+    print(f"\nCuenta '{account}' lista: {email} en {url}")
+
+
+def cmd_record(name: str | None, account: str | None):
     from flow.recorder import record
 
-    output = record(name=name)
+    output = record(name=name, account=account)
     print(f"\nMacro guardado en: {output}")
 
 
@@ -92,7 +134,9 @@ def cmd_list():
     print(f"\nUso: flow-nano --replay {recordings[-1]['name']} --image foto.jpg --prompt '...'")
 
 
-async def cmd_replay(macro_name: str, image: Path | None, prompt: str | None, output: Path | None, visible: bool):
+async def cmd_replay(
+    macro_name: str, image: Path | None, prompt: str | None, output: Path | None, visible: bool, account: str | None
+):
     from flow.replayer import replay, replay_latest
 
     if output is None:
@@ -102,9 +146,9 @@ async def cmd_replay(macro_name: str, image: Path | None, prompt: str | None, ou
     headless = not visible
 
     if macro_name == "__latest__":
-        result = await replay_latest(image, prompt, output, headless)
+        result = await replay_latest(image, prompt, output, headless, account)
     else:
-        result = await replay(macro_name, image, prompt, output, headless)
+        result = await replay(macro_name, image, prompt, output, headless, account)
 
     if result:
         print(f"\nResultado guardado en: {result}")
@@ -119,24 +163,22 @@ def cmd_gen_key():
     print(f"  export FLOW_CREDENTIALS_KEY={key}\n")
 
 
-async def cmd_export_creds(output: Path | None):
+async def cmd_export_creds(output: Path | None, account: str | None):
+    from core.accounts import resolve_account
     from core.credentials import export_credentials
 
-    result = await export_credentials(output)
+    result = await export_credentials(resolve_account(account), output)
     print(f"\nCredenciales exportadas a: {result}")
-    print("Para usar en otro entorno:")
-    print("  export FLOW_CREDENTIALS_KEY=<tu-clave>")
-    print(f"  export FLOW_CREDENTIALS_FILE={result}\n")
+    print("Para usar en otro entorno copia ese archivo a la misma ruta y define:")
+    print("  export FLOW_CREDENTIALS_KEY=<tu-clave>\n")
 
 
-async def cmd_generate(image: Path, prompt: str, output: Path | None, visible: bool):
-    from flow.auth import ensure_session
+async def cmd_generate(image: Path, prompt: str, output: Path | None, visible: bool, account: str | None):
+    from core.accounts import rotation_order
     from flow.client import FlowClient
 
-    await ensure_session()
-
     headless = not visible
-    async with FlowClient(headless=headless) as client:
+    async with FlowClient(rotation_order(account)[0], headless=headless) as client:
         result = await client.generate(image, prompt, output)
         print(f"\nResultado guardado en: {result}")
 
@@ -148,11 +190,11 @@ def main():
     args = parse_args()
 
     if args.login:
-        asyncio.run(cmd_login())
+        asyncio.run(cmd_login(args.account))
         return
 
     if args.record:
-        cmd_record(args.name)
+        cmd_record(args.name, args.account)
         return
 
     if args.gen_key:
@@ -160,15 +202,31 @@ def main():
         return
 
     if args.export_creds:
-        asyncio.run(cmd_export_creds(args.output))
+        asyncio.run(cmd_export_creds(args.output, args.account))
         return
 
     if args.list:
         cmd_list()
         return
 
+    if args.accounts:
+        cmd_accounts()
+        return
+
+    if args.import_chrome is not None:
+        try:
+            asyncio.run(cmd_import_chrome(args.import_chrome, args.account))
+        except (RuntimeError, FileNotFoundError, ValueError) as e:
+            print(f"\nError: {e}", file=sys.stderr)
+            sys.exit(1)
+        return
+
     if args.replay is not None:
-        asyncio.run(cmd_replay(args.replay, args.image, args.prompt, args.output, args.visible))
+        try:
+            asyncio.run(cmd_replay(args.replay, args.image, args.prompt, args.output, args.visible, args.account))
+        except (RuntimeError, FileNotFoundError, ValueError) as e:
+            print(f"\nError: {e}", file=sys.stderr)
+            sys.exit(1)
         return
 
     # Modo directo (sin macro)
@@ -176,7 +234,8 @@ def main():
         print("Error: --image y --prompt son requeridos para generar.", file=sys.stderr)
         print("", file=sys.stderr)
         print("Modos disponibles:", file=sys.stderr)
-        print("  flow-nano --login                                    # Login inicial", file=sys.stderr)
+        print("  flow-nano --login [--account x]                      # Login (crea/renueva cuenta)", file=sys.stderr)
+        print("  flow-nano --accounts                                 # Listar cuentas", file=sys.stderr)
         print("  flow-nano --record                                   # Grabar macro", file=sys.stderr)
         print("  flow-nano --replay --image foto.jpg --prompt '...'   # Replay macro", file=sys.stderr)
         print("  flow-nano --list                                     # Listar macros", file=sys.stderr)
@@ -185,7 +244,7 @@ def main():
         print("  flow-nano --export-creds                             # Exportar credenciales", file=sys.stderr)
         sys.exit(1)
 
-    asyncio.run(cmd_generate(args.image, args.prompt, args.output, args.visible))
+    asyncio.run(cmd_generate(args.image, args.prompt, args.output, args.visible, args.account))
 
 
 if __name__ == "__main__":
