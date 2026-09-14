@@ -473,3 +473,45 @@ pre{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:
 <section><h2>Superficie (ultimo snapshot)</h2>__SURFACE__</section>
 __API__
 </div></body></html>"""
+
+
+# ── Auto-snapshot al detectar cambios ─────────────────────────────
+
+def last_health() -> dict:
+    """Selectores del snapshot mas reciente (o {} si no hay)."""
+    if not HISTORY_DIR.exists():
+        return {}
+    for d in sorted((x for x in HISTORY_DIR.iterdir() if x.is_dir()), reverse=True):
+        hp = d / "health.json"
+        if hp.exists():
+            return json.loads(hp.read_text()).get("selectors", {})
+    return {}
+
+
+def changed_keys(current: dict, prior: dict) -> list[str]:
+    """Selectores cuyo estado difiere respecto del snapshot previo (pura, testeable).
+
+    Solo compara claves presentes en ambos: si no hay baseline (prior vacio), no
+    reporta cambios (no hay con que comparar).
+    """
+    return sorted(k for k, v in current.items() if k in prior and prior[k] != v)
+
+
+async def capture_current(page: Page, account: str = "?", note: str = "") -> Path:
+    """Snapshot liviano de la pantalla ACTUAL (sin navegar), con fecha. Para auto-captura."""
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    out = HISTORY_DIR / ts
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        await page.screenshot(path=str(out / "project.png"))
+        (out / "project.html").write_text(await _sanitized_html(page), encoding="utf-8")
+        (out / "project.surface.json").write_text(
+            json.dumps(await _surface(page), ensure_ascii=False, indent=1), encoding="utf-8")
+    except Exception as e:
+        log.warning("Auto-snapshot: no se pudo capturar la pantalla (%s)", str(e)[:60])
+    report = {s["key"]: await _present(page, s) for s in CRITICAL_SELECTORS if s["screen"] == "project"}
+    (out / "health.json").write_text(
+        json.dumps({"account": account, "when": datetime.now().isoformat(), "trigger": note or "auto",
+                    "selectors": report}, ensure_ascii=False, indent=1), encoding="utf-8")
+    log.info("Auto-snapshot guardado: %s (%s)", out, note)
+    return out

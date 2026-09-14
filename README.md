@@ -107,6 +107,11 @@ la superficie incluye algo de ruido (los chips de sugerencia del agente rotan so
 Ademas, antes de cada generacion corre un **health-check** que aborta con un mensaje
 claro —sin gastar credito— si un selector critico cambio.
 
+Si ese health-check detecta que un selector **cambio** respecto del ultimo snapshot,
+**auto-captura** un snapshot con fecha en ese momento (dejando registro del quiebre).
+Se desactiva con `FLOW_AUTO_SNAPSHOT=false`. Los snapshots siempre se guardan con
+fecha: `history/<AAAAMMDD_HHMMSS>/`.
+
 Todo lo capturado esta redactado: nunca se guardan cookies, tokens, firmas ni emails.
 
 ## Varias cuentas

@@ -295,12 +295,25 @@ def resolve_strategy(requested: str | None, quality: str) -> str:
 async def verify_ready_to_generate(page: Page) -> None:
     """Chequea los selectores criticos del proyecto antes de generar (pre-credito).
 
-    Si Flow cambio y falta alguno, aborta con un mensaje claro sin gastar credito.
+    Si algun selector cambio respecto del ultimo snapshot, auto-captura uno (con
+    fecha) para dejar registro del momento del cambio. Si falta alguno, aborta con
+    un mensaje claro sin gastar credito.
     """
-    from flow.snapshot import CRITICAL_SELECTORS, _present
+    from flow.snapshot import CRITICAL_SELECTORS, _present, capture_current, changed_keys, last_health
 
-    missing = [sel["key"] for sel in CRITICAL_SELECTORS
-               if sel["screen"] == "project" and not await _present(page, sel)]
+    current = {sel["key"]: await _present(page, sel)
+               for sel in CRITICAL_SELECTORS if sel["screen"] == "project"}
+
+    if settings.auto_snapshot:
+        changed = changed_keys(current, last_health())
+        if changed:
+            log.warning("Cambio detectado en selectores %s — auto-snapshot", changed)
+            try:
+                await capture_current(page, note=f"cambio: {','.join(changed)}")
+            except Exception as e:
+                log.warning("Auto-snapshot fallo (%s)", str(e)[:60])
+
+    missing = [k for k, present in current.items() if not present]
     if missing:
         raise RuntimeError(
             f"La UI de Flow cambio: faltan selectores {missing} antes de generar "

@@ -74,3 +74,28 @@ def test_redaccion_saca_secretos():
 def test_redaccion_no_rompe_texto_normal():
     assert redact("Proyecto nuevo") == "Proyecto nuevo"
     assert redact("") == ""
+
+
+# --- Deteccion de cambios para el auto-snapshot ---
+from flow.snapshot import changed_keys  # noqa: E402
+
+
+def test_changed_keys_detecta_flip():
+    prior = {"iniciar_generacion": True, "configuracion": True, "editor_prompt": True}
+    current = {"iniciar_generacion": False, "configuracion": True, "editor_prompt": True}
+    assert changed_keys(current, prior) == ["iniciar_generacion"]
+
+
+def test_changed_keys_sin_baseline_no_reporta():
+    # sin snapshot previo no hay con que comparar
+    assert changed_keys({"a": True, "b": False}, {}) == []
+
+
+def test_changed_keys_sin_cambios():
+    same = {"a": True, "b": False}
+    assert changed_keys(same, dict(same)) == []
+
+
+def test_changed_keys_solo_claves_compartidas():
+    # una clave nueva en current (no estaba antes) no cuenta como cambio
+    assert changed_keys({"a": True, "nueva": True}, {"a": True}) == []
