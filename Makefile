@@ -1,4 +1,4 @@
-.PHONY: setup login cuentas importar rec r rh rc rch t2i t2ih t2is t2ish ls key creds clean help
+.PHONY: setup login cuentas importar rec r rh rc rch t2i t2ih t2is t2ish t2v t2vh ls key creds clean help
 
 VENV := .venv
 PY := $(VENV)/bin/python
@@ -50,6 +50,12 @@ t2is: $(VENV) ## Text-to-image stealth visible — make t2is PROMPT="x" o PROMPT
 
 t2ish: $(VENV) ## Text-to-image stealth headless — make t2ish PROMPT="x" o PROMPT_FILE=x.json
 	$(PY) cli.py --replay text-to-image2-stealth $(PROMPT_ARG) $(ACCOUNT_ARG)
+
+t2v: $(VENV) ## Text-to-video visible — make t2v PROMPT="x" o PROMPT_FILE=x.json
+	$(PY) cli.py --replay text-to-video $(PROMPT_ARG) --visible $(ACCOUNT_ARG)
+
+t2vh: $(VENV) ## Text-to-video headless — make t2vh PROMPT="x" o PROMPT_FILE=x.json
+	$(PY) cli.py --replay text-to-video $(PROMPT_ARG) $(ACCOUNT_ARG)
 
 ls: $(VENV) ## Listar macros grabados
 	$(PY) cli.py --list

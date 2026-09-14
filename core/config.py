@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     # Imagen
     image_quality: str = "1K"       # 1K original, 2K/4K reescalado
     strategy: str = "auto"          # auto | hybrid | classic (como se obtiene el resultado) -> FLOW_STRATEGY
+    video_model: str = "Veo 3.1 - Fast"  # modelo de video -> FLOW_VIDEO_MODEL
+    video_timeout: int = 480        # segundos de espera del video (tarda minutos)
     output_retention_days: int = 0  # 0 = conservar siempre; >0 = borrar imagenes mas viejas
 
     # Cuentas: forzar una (sin rotar) y/o usar credentials.enc aunque haya perfil

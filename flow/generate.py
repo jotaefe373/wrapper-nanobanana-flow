@@ -107,12 +107,16 @@ class ResultCapture:
         """Marca el punto antes de generar; wait_new solo cuenta lo posterior."""
         self._baseline = len(self.media)
 
-    async def wait_new(self, page: Page, timeout_s: int) -> str | None:
-        """Espera una URL de media nueva. Lanza NoCreditsError si Flow avisa sin creditos."""
+    async def wait_new(self, page: Page, timeout_s: int, kind: str | None = None) -> str | None:
+        """Espera una URL de media nueva (opcionalmente de un tipo: image/video).
+
+        Lanza NoCreditsError si Flow avisa que no quedan creditos.
+        """
         for _ in range(timeout_s // 2):
             await page.wait_for_timeout(2000)
-            if len(self.media) > self._baseline:
-                return self.media[-1]
+            for url in self.media[self._baseline:]:
+                if kind is None or media_kind(url) == kind:
+                    return url
             try:
                 if await page.get_by_text(NO_CREDITS_RE).count():
                     raise NoCreditsError("Flow indica que no quedan creditos")
@@ -203,6 +207,77 @@ async def save_classic(page: Page, out_dir: Path, quality: str) -> Path:
     """Espera el DOM y descarga por el editor (con respaldos)."""
     images = await wait_images_dom(page)
     return await _download_native(page, out_dir, quality) or await _download_src(page, images, out_dir)
+
+
+# ── Video ─────────────────────────────────────────────────────────
+
+async def set_video_defaults(page: Page, model: str | None = None, stealth: bool = False) -> None:
+    """Fija el modelo de generacion de video en Configuracion. No bloqueante."""
+    model = model or settings.video_model
+    try:
+        await _click(page, page.get_by_role("button", name="Configuración", exact=True), stealth)
+        await _pause(page, 2000, stealth)
+        try:
+            await page.get_by_role("button", name="Modelo predeterminado de generación de video").click(timeout=5000)
+            await page.wait_for_timeout(1200)
+            await page.get_by_role("menuitem", name=model).first.click(timeout=5000)
+            await page.wait_for_timeout(800)
+            log.info("Modelo de video: %s", model)
+        except Exception:
+            log.info("No pude fijar el modelo de video '%s' (se usa el actual)", model)
+        await _click(page, page.get_by_role("button", name="Guardar"), stealth)
+        await _pause(page, 2500, stealth)
+    except Exception as e:
+        log.warning("No se pudo abrir Configuracion de video (%s)", str(e)[:60])
+
+
+async def _agent_asked(page: Page) -> bool:
+    """Heuristica: el agente respondio con una pregunta (duracion/modelo) en vez de generar."""
+    try:
+        txt = (await page.evaluate("() => document.body.innerText") or "")[-1000:].lower()
+    except Exception:
+        return False
+    return "?" in txt and any(k in txt for k in ("prefer", "which", "opci", "second", "segundo", "model", "modelo"))
+
+
+async def generate_video(
+    page: Page,
+    prompt: str,
+    *,
+    model: str | None = None,
+    out_dir: Path | None = None,
+    timeout_s: int | None = None,
+    stealth: bool = False,
+) -> Path:
+    """Genera un video: setup -> generar por la UI -> leer la URL del video de la red.
+
+    El video se obtiene siempre por la estrategia hibrida (la descarga por editor es
+    especifica de imagen). El agente de Flow decide video segun el prompt, asi que
+    conviene un prompt que pida explicitamente un video.
+    """
+    out_dir = out_dir or OUTPUT_DIR
+    timeout_s = timeout_s or settings.video_timeout
+
+    capture = ResultCapture(page)
+    await new_project(page, stealth)
+    await set_video_defaults(page, model=model, stealth=stealth)
+    await enter_prompt(page, prompt, stealth)
+
+    capture.mark()
+    await click_generate(page, stealth)
+
+    # El agente puede negociar (duracion/modelo) antes de generar: espera corta y, si
+    # respondio con una pregunta y todavia no hay video, confirma para continuar.
+    url = await capture.wait_new(page, 60, kind="video")
+    if not url and await _agent_asked(page):
+        log.info("El agente pidio confirmacion; respondo para continuar")
+        await enter_prompt(page, "Si, procede y genera el video con la duracion por defecto.", stealth)
+        await click_generate(page, stealth)
+    if not url:
+        url = await capture.wait_new(page, timeout_s, kind="video")
+    if not url:
+        raise RuntimeError(f"Video: no llego la URL del resultado en {timeout_s}s (¿el prompt no era de video?)")
+    return await download_url(page, url, out_dir)
 
 
 # ── Orquestador ───────────────────────────────────────────────────
