@@ -20,7 +20,7 @@ session/
 *.enc
 
 # Prompts generados
-prompts/
+prompts/*
 
 # Output (imagenes generadas)
 output/
