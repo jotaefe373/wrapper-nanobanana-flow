@@ -69,6 +69,21 @@ a costa de exponer mas cookies, se puede volver al conjunto de 11 (las 6 + `HSID
 
 La calidad de descarga se controla con `FLOW_IMAGE_QUALITY` en `.env`: `1K` (original, por defecto), `2K` o `4K` (reescalados por Flow).
 
+## Estrategias de descarga (`FLOW_STRATEGY`)
+
+Como se obtiene la imagen tras generarla:
+
+- **`hybrid`** — lee la URL del resultado directo de la respuesta de red de Flow y
+  la descarga con la sesion. No abre el editor ni el menu de descarga: menos pasos
+  de UI, mas robusto ante cambios de la interfaz. Solo 1K (resolucion nativa).
+- **`classic`** — la via por el editor (`Descargar contenido multimedia` -> 1K/2K/4K).
+  Necesaria para 2K/4K. Es el respaldo si `hybrid` deja de andar.
+- **`auto`** (por defecto) — intenta `hybrid` y, si no capta la URL, cae a `classic`
+  sin volver a generar. Pedir 2K/4K fuerza `classic`.
+
+El unico paso que siempre pasa por la UI es *disparar la generacion* (Flow lo
+protege con un token anti-abuso por accion que no se puede reproducir headless).
+
 ## Varias cuentas
 
 Cada cuenta de Google tiene su propio perfil en `session/accounts/<nombre>/`.

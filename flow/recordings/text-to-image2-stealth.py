@@ -1,10 +1,7 @@
 """
 Macro para Google Flow — text-to-image con Nano Banana 2 (variante stealth).
-Reescrito para la interfaz nueva (flow.google.com, 2026).
+Igual que text-to-image2 pero con clicks tipo humano (bezier) y delays gaussianos.
 
-Igual que text-to-image2 pero con human_delay entre pasos, para tandas largas.
-
-Ejecutar via replay:
     make t2ish PROMPT="mi prompt"
     make t2ish PROMPT_FILE=prompts/producto.json
 """
@@ -30,18 +27,6 @@ def _load_prompt(prompt: str) -> str:
 
 
 async def recorded_flow(page, image_path: str, prompt: str):
-    """text-to-image (stealth) con Nano Banana 2 en la interfaz nueva de Flow."""
-    prompt_text = _load_prompt(prompt)
-
     await page.goto(FLOW_URL)
     await human_delay(2500)
-
-    await generate.new_project(page)
-    await human_delay(1500)
-    await generate.set_image_defaults(page, aspect="1:1", count="x1")
-    await human_delay(1200)
-    await generate.enter_prompt(page, prompt_text)
-    await human_delay(1000)
-
-    images = await generate.start_and_wait(page, timeout_s=180)
-    return await generate.save_generated(page, images)
+    return await generate.generate_and_save(page, _load_prompt(prompt), stealth=True)
