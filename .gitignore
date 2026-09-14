@@ -54,3 +54,4 @@ htmlcov/
 history/**/*.html
 history/**/*.png
 history/dashboard.html
+!prompts/RECETAS.md

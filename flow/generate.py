@@ -349,7 +349,7 @@ async def generate_and_save(
     await click_generate(page, stealth)
 
     if strat in ("hybrid", "auto"):
-        url = await capture.wait_new(page, timeout_s if strat == "hybrid" else 90)
+        url = await capture.wait_new(page, timeout_s if strat == "hybrid" else 150)
         if url:
             return await download_url(page, url, out_dir)
         if strat == "hybrid":
