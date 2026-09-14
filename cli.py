@@ -42,6 +42,7 @@ def parse_args() -> argparse.Namespace:
     mode.add_argument("--snapshot", action="store_true", help="Guardar snapshot del sitio en history/ (trazable)")
     mode.add_argument("--health", action="store_true", help="Chequear selectores criticos (sin creditos)")
     mode.add_argument("--snapshot-diff", action="store_true", help="Diff entre los dos ultimos snapshots")
+    mode.add_argument("--history-ui", action="store_true", help="Generar dashboard HTML local del historial")
     mode.add_argument("--gen-key", action="store_true", help="Generar clave de encriptacion")
     mode.add_argument("--export-creds", action="store_true", help="Exportar credenciales encriptadas")
 
@@ -152,6 +153,14 @@ def cmd_snapshot_diff():
     from flow.snapshot import diff_latest
 
     print(diff_latest())
+
+
+def cmd_history_ui():
+    from flow.snapshot import build_history_ui
+
+    out = build_history_ui()
+    print(f"\nDashboard generado: {out}")
+    print(f"Abrilo con:  open {out}")
 
 
 def cmd_record(name: str | None, account: str | None):
@@ -272,6 +281,10 @@ def main():
 
     if args.snapshot_diff:
         cmd_snapshot_diff()
+        return
+
+    if args.history_ui:
+        cmd_history_ui()
         return
 
     if args.replay is not None:

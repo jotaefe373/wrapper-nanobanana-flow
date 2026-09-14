@@ -305,3 +305,171 @@ def diff_latest() -> str:
             lines += [f"  + {r}:{n}" for r, n in sorted(added)]
             lines += [f"  - {r}:{n}" for r, n in sorted(removed)]
     return "\n".join(lines)
+
+
+# ── Dashboard HTML local (solo datos, sin capturas) ───────────────
+
+def _load_history() -> list[dict]:
+    """Lee todos los snapshots de history/ ordenados de viejo a nuevo."""
+    if not HISTORY_DIR.exists():
+        return []
+    snaps = []
+    for d in sorted(x for x in HISTORY_DIR.iterdir() if x.is_dir()):
+        hp = d / "health.json"
+        if not hp.exists():
+            continue
+        health = json.loads(hp.read_text())
+        surfaces = {}
+        for sf in d.glob("*.surface.json"):
+            surfaces[sf.name.split(".")[0]] = json.loads(sf.read_text())
+        api = None
+        ap = d / "api.json"
+        if ap.exists():
+            api = json.loads(ap.read_text()).get("rpcs")
+        snaps.append({"ts": d.name, "when": health.get("when", ""),
+                      "account": health.get("account", ""), "health": health.get("selectors", {}),
+                      "surfaces": surfaces, "api": api})
+    return snaps
+
+
+def _diffs(snaps: list[dict]) -> list[dict]:
+    out = []
+    for prev, cur in zip(snaps, snaps[1:]):
+        hchanges = [{"key": k, "from": prev["health"].get(k), "to": cur["health"].get(k)}
+                    for k in sorted(set(prev["health"]) | set(cur["health"]))
+                    if prev["health"].get(k) != cur["health"].get(k)]
+        sdiff = {}
+        for screen in sorted(set(prev["surfaces"]) | set(cur["surfaces"])):
+            a = {(x["role"], x["name"]) for x in prev["surfaces"].get(screen, [])}
+            b = {(x["role"], x["name"]) for x in cur["surfaces"].get(screen, [])}
+            added, removed = sorted(b - a), sorted(a - b)
+            if added or removed:
+                sdiff[screen] = {"added": added, "removed": removed}
+        if hchanges or sdiff:
+            out.append({"from": prev["ts"], "to": cur["ts"], "health": hchanges, "surface": sdiff})
+    return out
+
+
+def build_history_ui(out_path: Path | None = None) -> Path:
+    """Genera un dashboard HTML autocontenido del historial (solo datos)."""
+    from html import escape as e
+
+    out_path = out_path or (HISTORY_DIR / "dashboard.html")
+    snaps = _load_history()
+    keys = [s["key"] for s in CRITICAL_SELECTORS]
+    why = {s["key"]: s["why"] for s in CRITICAL_SELECTORS}
+
+    # Matriz de salud: filas = snapshot (nuevo arriba), columnas = selector
+    rows = []
+    for s in reversed(snaps):
+        cells = ""
+        for k in keys:
+            v = s["health"].get(k)
+            cls = "ok" if v is True else ("bad" if v is False else "na")
+            sym = "✓" if v is True else ("✕" if v is False else "–")
+            cells += f'<td class="{cls}" title="{e(why.get(k,""))}">{sym}</td>'
+        when = e(s["when"][:19].replace("T", " "))
+        rows.append(f'<tr><td class="ts">{e(s["ts"])}</td><td class="acc">{e(s["account"])}</td>'
+                    f'<td class="when">{when}</td>{cells}</tr>')
+    header_cells = "".join(f'<th title="{e(why.get(k,""))}"><span>{e(k)}</span></th>' for k in keys)
+    matrix = (f'<table class="matrix"><thead><tr><th>snapshot</th><th>cuenta</th><th>fecha</th>'
+              f'{header_cells}</tr></thead><tbody>{"".join(rows)}</tbody></table>'
+              if snaps else '<p class="empty">No hay snapshots todavia. Corre <code>make snapshot</code>.</p>')
+
+    # Diffs
+    diff_html = ""
+    for d in reversed(_diffs(snaps)):
+        parts = [f'<h3>{e(d["from"])} → {e(d["to"])}</h3>']
+        if d["health"]:
+            parts.append('<div class="hchg">')
+            for c in d["health"]:
+                parts.append(f'<div>selector <code>{e(c["key"])}</code>: {c["from"]} → <b>{c["to"]}</b></div>')
+            parts.append("</div>")
+        for screen, sd in d["surface"].items():
+            parts.append(f'<div class="scr"><span class="scrname">{e(screen)}</span>')
+            for r, n in sd["added"]:
+                parts.append(f'<div class="add">+ {e(r)}: {e(n)}</div>')
+            for r, n in sd["removed"]:
+                parts.append(f'<div class="rem">− {e(r)}: {e(n)}</div>')
+            parts.append("</div>")
+        diff_html += f'<div class="diff">{"".join(parts)}</div>'
+    if not diff_html:
+        diff_html = '<p class="empty">Sin cambios entre snapshots (o hace falta un segundo snapshot).</p>'
+
+    # Superficie del ultimo snapshot
+    surf_html = ""
+    if snaps:
+        last = snaps[-1]
+        for screen, items in last["surfaces"].items():
+            lis = "".join(f'<li><span class="role">{e(i["role"])}</span> {e(i["name"])}</li>' for i in items)
+            surf_html += f'<details><summary>{e(screen)} ({len(items)})</summary><ul class="surf">{lis}</ul></details>'
+
+    api_html = ""
+    if snaps and snaps[-1]["api"]:
+        for rid, info in snaps[-1]["api"].items():
+            api_html += (f'<details><summary><code>{e(rid)}</code> <span class="dim">{e(info.get("endpoint",""))}</span></summary>'
+                         f'<pre>{e(json.dumps(info, ensure_ascii=False, indent=1))}</pre></details>')
+    api_section = f'<section><h2>Catalogo de API (RPCs)</h2>{api_html}</section>' if api_html else ""
+
+    n = len(snaps)
+    rng = f'{snaps[0]["ts"]} … {snaps[-1]["ts"]}' if snaps else "—"
+    html = (_DASHBOARD_TMPL
+            .replace("__N__", str(n)).replace("__RNG__", e(rng))
+            .replace("__MATRIX__", matrix).replace("__DIFFS__", diff_html)
+            .replace("__SURFACE__", surf_html or '<p class="empty">—</p>')
+            .replace("__API__", api_section)
+            .replace("__GENERATED__", datetime.now().strftime("%Y-%m-%d %H:%M")))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(html, encoding="utf-8")
+    log.info("Dashboard generado: %s (%d snapshots)", out_path, n)
+    return out_path
+
+
+_DASHBOARD_TMPL = """<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Historial de Flow</title>
+<style>
+:root{--bg:#eef1f4;--card:#fff;--ink:#15181e;--dim:#5a626e;--line:#d8dde3;
+--ok:#3c7a52;--okbg:#e4eee7;--bad:#b0384a;--badbg:#f3e1e4;--na:#a2abb6;--acc:#2f6884;--mono:"SFMono-Regular",Consolas,monospace}
+@media(prefers-color-scheme:dark){:root{--bg:#0c0f13;--card:#14181e;--ink:#e7eaee;--dim:#9ba4b0;--line:#28303a;
+--ok:#5ca379;--okbg:#152318;--bad:#d9748a;--badbg:#2a171c;--na:#5a636e;--acc:#63a8c6}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:24px 18px 60px}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--dim);font-size:13px;margin-bottom:24px}
+h2{font-size:16px;margin:30px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.matrix{border-collapse:collapse;width:100%;font-size:13px}
+.matrix th,.matrix td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:center}
+.matrix thead th{color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;vertical-align:bottom}
+.matrix thead th span{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;font-family:var(--mono);text-transform:none;letter-spacing:.02em}
+.matrix td.ts{font-family:var(--mono);text-align:left;color:var(--acc)}
+.matrix td.acc,.matrix td.when{text-align:left;color:var(--dim);font-size:12px;font-variant-numeric:tabular-nums}
+.matrix td.ok{color:var(--ok);background:var(--okbg);font-weight:700}
+.matrix td.bad{color:var(--bad);background:var(--badbg);font-weight:700}
+.matrix td.na{color:var(--na)}
+.diff{border-left:3px solid var(--acc);padding:2px 14px;margin:14px 0}
+.diff h3{font-family:var(--mono);font-size:13px;margin:6px 0}
+.add{color:var(--ok)}.rem{color:var(--bad)}
+.scr{margin:8px 0}.scrname{font-family:var(--mono);color:var(--dim);font-size:12px}
+.hchg code,.diff code{font-family:var(--mono);background:var(--bg);padding:1px 5px;border-radius:4px}
+details{margin:6px 0}summary{cursor:pointer;font-weight:600}
+ul.surf{list-style:none;padding-left:10px;margin:8px 0;columns:2;font-size:13px}
+ul.surf li{break-inside:avoid;padding:2px 0}
+.surf .role{font-family:var(--mono);color:var(--acc);font-size:11px}
+.dim{color:var(--dim);font-weight:400;font-family:var(--mono);font-size:11px}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;overflow:auto;font-size:12px}
+.empty{color:var(--dim)}
+@media(max-width:560px){ul.surf{columns:1}}
+</style></head><body><div class="wrap">
+<h1>Historial de Flow</h1>
+<div class="sub">__N__ snapshot(s) · __RNG__ · generado __GENERATED__</div>
+<section><h2>Salud de selectores en el tiempo</h2>
+<div style="overflow-x:auto">__MATRIX__</div>
+<p class="sub" style="margin-top:10px">✓ presente · ✕ falta · – sin dato. Si una columna pasa a ✕, ese paso del flujo se rompio.</p></section>
+<section><h2>Cambios entre snapshots</h2>__DIFFS__</section>
+<section><h2>Superficie (ultimo snapshot)</h2>__SURFACE__</section>
+__API__
+</div></body></html>"""

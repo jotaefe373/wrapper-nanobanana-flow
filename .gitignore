@@ -53,3 +53,4 @@ htmlcov/
 # los PNG y el HTML completo quedan locales (fidelidad + inspeccion, sin bloat/PII)
 history/**/*.html
 history/**/*.png
+history/dashboard.html

@@ -37,6 +37,7 @@ make r MACRO=mi_flujo IMAGE=foto.jpg PROMPT_FILE=prompt.txt
 | `make health` | Chequear que los selectores criticos sigan presentes (sin creditos) |
 | `make snapshot` | Guardar snapshot trazable del sitio en `history/` (`API=1` agrega RPCs, 1 credito) |
 | `make snapshot-diff` | Diff entre los dos ultimos snapshots |
+| `make history-ui` | Generar dashboard HTML local del historial (matriz de salud, diffs) |
 | `make importar CHROME=correo ACCOUNT=x` | Clonar la sesion de esa cuenta desde tu Chrome, solo cookies de autenticacion (sin `CHROME` lista cuentas) |
 
 ## Cookies clonadas

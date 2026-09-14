@@ -1,4 +1,4 @@
-.PHONY: setup login cuentas importar snapshot health snapshot-diff rec r rh rc rch t2i t2ih t2is t2ish t2v t2vh ls key creds clean help
+.PHONY: setup login cuentas importar snapshot health snapshot-diff history-ui rec r rh rc rch t2i t2ih t2is t2ish t2v t2vh ls key creds clean help
 
 VENV := .venv
 PY := $(VENV)/bin/python
@@ -32,6 +32,9 @@ health: $(VENV) ## Chequear selectores criticos (sin creditos)
 
 snapshot-diff: $(VENV) ## Diff entre los dos ultimos snapshots
 	$(PY) cli.py --snapshot-diff
+
+history-ui: $(VENV) ## Generar dashboard HTML local del historial
+	$(PY) cli.py --history-ui
 
 rec: $(VENV) ## Grabar macro — make rec [NAME=x]
 	$(PY) cli.py --record $(if $(NAME),--name $(NAME),) $(ACCOUNT_ARG)
