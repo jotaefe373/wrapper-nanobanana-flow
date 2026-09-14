@@ -39,6 +39,9 @@ def parse_args() -> argparse.Namespace:
     mode.add_argument("--accounts", action="store_true", help="Listar cuentas y la proxima en la rotacion")
     mode.add_argument("--import-chrome", nargs="?", const="__list__", metavar="CORREO",
                        help="Clonar la sesion de una cuenta de tu Chrome; sin valor lista las cuentas")
+    mode.add_argument("--snapshot", action="store_true", help="Guardar snapshot del sitio en history/ (trazable)")
+    mode.add_argument("--health", action="store_true", help="Chequear selectores criticos (sin creditos)")
+    mode.add_argument("--snapshot-diff", action="store_true", help="Diff entre los dos ultimos snapshots")
     mode.add_argument("--gen-key", action="store_true", help="Generar clave de encriptacion")
     mode.add_argument("--export-creds", action="store_true", help="Exportar credenciales encriptadas")
 
@@ -52,6 +55,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--visible", action="store_true", help="Mostrar browser (no headless)")
     parser.add_argument("--account", "-a", type=str, default=None,
                         help="Cuenta a usar (default: rotar entre todas)")
+    parser.add_argument("--api", action="store_true", help="En --snapshot: capturar tambien el catalogo de RPCs (1 credito)")
 
     args = parser.parse_args()
 
@@ -111,6 +115,43 @@ async def cmd_import_chrome(email: str, account: str | None):
         raise ValueError("Indica el nombre de la cuenta destino con ACCOUNT=<nombre> (o --account)")
     url = await import_from_chrome(email, account)
     print(f"\nCuenta '{account}' lista: {email} en {url}")
+
+
+async def cmd_snapshot(account: str | None, with_api: bool):
+    from flow.snapshot import run_snapshot
+
+    out = await run_snapshot(account, with_api)
+    print(f"\nSnapshot guardado en: {out}")
+
+
+async def cmd_health(account: str | None):
+    from playwright.async_api import async_playwright
+    from core.accounts import rotation_order
+    from flow.auth import launch_authenticated
+    from flow.snapshot import health_check, health_summary, CRITICAL_SELECTORS
+
+    acc = account or rotation_order()[0]
+    async with async_playwright() as p:
+        ctx = await launch_authenticated(p, acc, headless=True)
+        try:
+            page = ctx.pages[0] if ctx.pages else await ctx.new_page()
+            from core.accounts import flow_url
+            await page.goto(flow_url(acc))
+            report = await health_check(page)
+        finally:
+            await ctx.close()
+    ok, missing = health_summary(report)
+    print(f"\nHealth-check ({acc}):")
+    why = {s["key"]: s["why"] for s in CRITICAL_SELECTORS}
+    for k, present in report.items():
+        print(f"  {'OK ' if present else 'FALTA'}  {k:20} — {why.get(k,'')}")
+    print("\n" + ("Todo OK ✅" if ok else f"Cambio la UI: revisa {missing} (corre make snapshot)"))
+
+
+def cmd_snapshot_diff():
+    from flow.snapshot import diff_latest
+
+    print(diff_latest())
 
 
 def cmd_record(name: str | None, account: str | None):
@@ -219,6 +260,18 @@ def main():
         except (RuntimeError, FileNotFoundError, ValueError) as e:
             print(f"\nError: {e}", file=sys.stderr)
             sys.exit(1)
+        return
+
+    if args.snapshot:
+        asyncio.run(cmd_snapshot(args.account, args.api))
+        return
+
+    if args.health:
+        asyncio.run(cmd_health(args.account))
+        return
+
+    if args.snapshot_diff:
+        cmd_snapshot_diff()
         return
 
     if args.replay is not None:

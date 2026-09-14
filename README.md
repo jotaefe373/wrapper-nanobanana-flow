@@ -34,6 +34,9 @@ make r MACRO=mi_flujo IMAGE=foto.jpg PROMPT_FILE=prompt.txt
 | `make setup` | Instalar venv, dependencias y Playwright |
 | `make login ACCOUNT=x` | Login manual en Google (crea o renueva la cuenta `x`) |
 | `make cuentas` | Listar cuentas y la proxima en la rotacion |
+| `make health` | Chequear que los selectores criticos sigan presentes (sin creditos) |
+| `make snapshot` | Guardar snapshot trazable del sitio en `history/` (`API=1` agrega RPCs, 1 credito) |
+| `make snapshot-diff` | Diff entre los dos ultimos snapshots |
 | `make importar CHROME=correo ACCOUNT=x` | Clonar la sesion de esa cuenta desde tu Chrome, solo cookies de autenticacion (sin `CHROME` lista cuentas) |
 
 ## Cookies clonadas
@@ -83,6 +86,27 @@ Como se obtiene la imagen tras generarla:
 
 El unico paso que siempre pasa por la UI es *disparar la generacion* (Flow lo
 protege con un token anti-abuso por accion que no se puede reproducir headless).
+
+## Historial trazable (`history/`)
+
+Flow cambia su UI seguido y rompe los flujos. `make snapshot` guarda el estado del
+sitio con fecha en `history/<ts>/`:
+
+- `*.surface.json` — elementos interactivos (rol + nombre), redactado.
+- `health.json` — presencia de los selectores criticos de los que dependen los
+  macros. Es la senal limpia de "se rompio el flujo".
+- `*.png` y `*.html` — captura completa para inspeccion (quedan **locales**; al git
+  van solo los JSON: diffeables, sin bloat ni secretos).
+- `api.json` — con `make snapshot API=1`: catalogo de RPCs (endpoint + forma
+  request/response), todo redactado. Gasta 1 credito (una generacion real).
+
+`make snapshot-diff` compara los dos ultimos: `health.json` es la parte confiable;
+la superficie incluye algo de ruido (los chips de sugerencia del agente rotan solos).
+
+Ademas, antes de cada generacion corre un **health-check** que aborta con un mensaje
+claro —sin gastar credito— si un selector critico cambio.
+
+Todo lo capturado esta redactado: nunca se guardan cookies, tokens, firmas ni emails.
 
 ## Varias cuentas
 

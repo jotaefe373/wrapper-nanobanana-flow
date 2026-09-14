@@ -1,4 +1,4 @@
-.PHONY: setup login cuentas importar rec r rh rc rch t2i t2ih t2is t2ish t2v t2vh ls key creds clean help
+.PHONY: setup login cuentas importar snapshot health snapshot-diff rec r rh rc rch t2i t2ih t2is t2ish t2v t2vh ls key creds clean help
 
 VENV := .venv
 PY := $(VENV)/bin/python
@@ -23,6 +23,15 @@ cuentas: $(VENV) ## Listar cuentas y la proxima en rotar
 
 importar: $(VENV) ## Clonar sesion de Chrome — make importar CHROME=correo ACCOUNT=x (sin CHROME lista cuentas)
 	$(PY) cli.py --import-chrome $(if $(CHROME),"$(CHROME)",) $(ACCOUNT_ARG)
+
+snapshot: $(VENV) ## Snapshot trazable del sitio -> history/ (API=1 agrega RPCs, 1 credito)
+	$(PY) cli.py --snapshot $(if $(API),--api,) $(ACCOUNT_ARG)
+
+health: $(VENV) ## Chequear selectores criticos (sin creditos)
+	$(PY) cli.py --health $(ACCOUNT_ARG)
+
+snapshot-diff: $(VENV) ## Diff entre los dos ultimos snapshots
+	$(PY) cli.py --snapshot-diff
 
 rec: $(VENV) ## Grabar macro — make rec [NAME=x]
 	$(PY) cli.py --record $(if $(NAME),--name $(NAME),) $(ACCOUNT_ARG)

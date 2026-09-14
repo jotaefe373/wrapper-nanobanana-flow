@@ -48,3 +48,8 @@ htmlcov/
 
 # Images
 *.png
+
+# Historial de snapshots: se versiona solo el JSON (traza diffeable);
+# los PNG y el HTML completo quedan locales (fidelidad + inspeccion, sin bloat/PII)
+history/**/*.html
+history/**/*.png

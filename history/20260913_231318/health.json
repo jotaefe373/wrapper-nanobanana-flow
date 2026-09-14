@@ -1,0 +1,10 @@
+{
+ "account": "smithmonsterr",
+ "when": "2026-09-13T23:13:31.197441",
+ "selectors": {
+  "proyecto_nuevo": true,
+  "configuracion": true,
+  "editor_prompt": true,
+  "iniciar_generacion": true
+ }
+}

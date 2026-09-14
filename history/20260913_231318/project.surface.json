@@ -1,0 +1,90 @@
+[
+ {
+  "role": "a",
+  "name": "Skip to main content"
+ },
+ {
+  "role": "button",
+  "name": "Página principal"
+ },
+ {
+  "role": "button",
+  "name": "Más opciones para el proyecto"
+ },
+ {
+  "role": "button",
+  "name": "Buscar"
+ },
+ {
+  "role": "button",
+  "name": "Opciones para filtrar y ordenar"
+ },
+ {
+  "role": "button",
+  "name": "Agregar menú de contenido multimedia"
+ },
+ {
+  "role": "button",
+  "name": "Ayuda sobre el producto"
+ },
+ {
+  "role": "button",
+  "name": "Configuración de la cuadrícula de tarjetas"
+ },
+ {
+  "role": "button",
+  "name": "Más opciones"
+ },
+ {
+  "role": "a",
+  "name": "apps_spark_2\nHerramientas"
+ },
+ {
+  "role": "a",
+  "name": "delete\nPapelera"
+ },
+ {
+  "role": "button",
+  "name": "Abrir historial de sesiones"
+ },
+ {
+  "role": "button",
+  "name": "Iniciar otra sesión"
+ },
+ {
+  "role": "button",
+  "name": "Cerrar"
+ },
+ {
+  "role": "button",
+  "name": "Cambia el nombre de mis recursos"
+ },
+ {
+  "role": "button",
+  "name": "Convierte un concepto en instrucciones"
+ },
+ {
+  "role": "button",
+  "name": "Edita una imagen"
+ },
+ {
+  "role": "button",
+  "name": "Agregar ingredientes al cuadro de instrucción"
+ },
+ {
+  "role": "button",
+  "name": "Instrucciones del agente"
+ },
+ {
+  "role": "button",
+  "name": "Configuración"
+ },
+ {
+  "role": "button",
+  "name": "Botón de configuración"
+ },
+ {
+  "role": "button",
+  "name": "Iniciar generación"
+ }
+]

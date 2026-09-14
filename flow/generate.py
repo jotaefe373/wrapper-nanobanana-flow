@@ -262,6 +262,7 @@ async def generate_video(
     await new_project(page, stealth)
     await set_video_defaults(page, model=model, stealth=stealth)
     await enter_prompt(page, prompt, stealth)
+    await verify_ready_to_generate(page)
 
     capture.mark()
     await click_generate(page, stealth)
@@ -291,6 +292,23 @@ def resolve_strategy(requested: str | None, quality: str) -> str:
     return strat if strat in ("hybrid", "classic", "auto") else "auto"
 
 
+async def verify_ready_to_generate(page: Page) -> None:
+    """Chequea los selectores criticos del proyecto antes de generar (pre-credito).
+
+    Si Flow cambio y falta alguno, aborta con un mensaje claro sin gastar credito.
+    """
+    from flow.snapshot import CRITICAL_SELECTORS, _present
+
+    missing = [sel["key"] for sel in CRITICAL_SELECTORS
+               if sel["screen"] == "project" and not await _present(page, sel)]
+    if missing:
+        raise RuntimeError(
+            f"La UI de Flow cambio: faltan selectores {missing} antes de generar "
+            "(no se gasto credito). Corre 'make snapshot' para ver que cambio."
+        )
+    log.info("Health-check UI: OK")
+
+
 async def generate_and_save(
     page: Page,
     prompt: str,
@@ -312,6 +330,7 @@ async def generate_and_save(
     await new_project(page, stealth)
     await set_image_defaults(page, aspect=aspect, count=count, stealth=stealth)
     await enter_prompt(page, prompt, stealth)
+    await verify_ready_to_generate(page)
 
     capture.mark()
     await click_generate(page, stealth)

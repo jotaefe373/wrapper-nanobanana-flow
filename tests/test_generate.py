@@ -51,3 +51,26 @@ def default_strategy(monkeypatch):
 ])
 def test_resolucion_de_estrategia(req, quality, expected):
     assert resolve_strategy(req, quality) == expected
+
+
+# --- Redacción del snapshot (crítico: nada de secretos al historial) ---
+from flow.snapshot import redact, diff_latest  # noqa: E402
+
+
+def test_redaccion_saca_secretos():
+    muestra = (
+        'url=https://flow-content.google/image/x?Signature=abc123&KeyName=labs-key '
+        '"SNlM0e":"AQXbc12345token" contacto mr@gmail.com '
+        '"blob":"0cAFcWeA5gFcckASwXjEngZkmQrxLQ5XDKmln12zSoU3UVHAyaLPXCR6vosMjZr12345"'
+    )
+    out = redact(muestra)
+    assert "abc123" not in out and "Signature=<redacted>" in out
+    assert "labs-key" not in out and "KeyName=<redacted>" in out
+    assert "AQXbc12345token" not in out and '"SNlM0e":"<redacted>"' in out
+    assert "mr@gmail.com" not in out and "<email>" in out
+    assert "0cAFcWeA5gFcckAS" not in out and "<redacted-blob>" in out
+
+
+def test_redaccion_no_rompe_texto_normal():
+    assert redact("Proyecto nuevo") == "Proyecto nuevo"
+    assert redact("") == ""
