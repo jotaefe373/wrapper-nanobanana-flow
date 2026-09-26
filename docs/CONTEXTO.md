@@ -118,6 +118,40 @@ leer el resultado.
 - **DBSC** (Device Bound Session Credentials): mitigación futura de Google que liga
   la sesión al TPM del equipo; volvería la cookie no-portable.
 
+## Sesión 2026-09-26 — Flow cambió la UI, multi-imagen
+
+**Síntoma**: todo fallaba sin gastar créditos (health-check en rojo).
+
+**Cambios de Flow detectados** (snapshots en `history/20260926_*`):
+- "Proyecto nuevo" quedó **sin traducir**: "New project" (el resto de la UI sigue
+  en español). Se acepta cualquiera de los dos (`NEW_PROJECT_RE`).
+- "Configuración" pasó a llamarse **"Ajustes"** (`SETTINGS_RE`). El panel es el
+  mismo: aspecto 16:9/4:3/1:1/3:4/9:16, cantidad x1–x4, "Guardar".
+- Los radios de aspecto traen el ícono en el nombre accesible
+  (`crop_16_9 16:9`): se matchea por sufijo.
+- "Modelo predeterminado de generación de **vídeo**" (con tilde).
+- Los resultados se sirven en `flow.google.com/asb/<id>=s512-rw?authuser=N`.
+  Original: `=s0` conservando `?authuser` (sin ella, 403).
+- La captura por red (hybrid) **ya no trae la URL** del resultado; queda el
+  respaldo por DOM. Pendiente revisar el RPC (tarea en el hub).
+- El health-check de rol ahora admite alternativas (`"Configuración|Ajustes"`).
+
+**Nuevo**:
+- `FLOW_IMAGE_ASPECT` (antes el aspecto estaba fijo en 1:1).
+- `FLOW_MULTI`: un mensaje → varias imágenes (el agente las genera en tanda,
+  ~45 s). Solo en cuentas que lo permiten (`smithmonsterr` sí, `zerossse` no).
+  Primera versión esperaba 7 min por la red rota; ahora vigila red + DOM.
+- `GenerationRejectedError`: si el filtro de seguridad de Flow rechaza el prompt,
+  se corta al instante (antes ~5 min de timeout) y no se rota de cuenta.
+
+**Aprendido**:
+- Las sesiones importadas se vencen rápido si Chrome sigue usando la cuenta
+  (rota `__Secure-1PSIDTS`). Con varias cuentas en un mismo perfil de Chrome,
+  verificar que `account.json` quede en el `/u/<n>/` correcto: `smithmonsterr`
+  había quedado en la raíz y "vencía" enseguida; reimportada quedó en `/u/1/`.
+- El filtro de seguridad de Flow rechaza personajes menores de edad descritos con
+  detalle físico/de vestimenta. Diseñar personajes originales adultos.
+
 ## Preguntas abiertas / ideas futuras
 - **Video**: en curso (otro agente lo está implementando reusando la estrategia
   hybrid; el extractor ya maneja `flow-content.google/video/...`).
@@ -137,13 +171,17 @@ leer el resultado.
 - **PUBLIC_ERROR_UNUSUAL_ACTIVITY**: rechazo del anti-abuso al replicar la request.
 
 ## Cómo retomar
-- Estado: imágenes funcionando end-to-end (hybrid + classic, probado). Video en
+- Estado (2026-09-26): imágenes funcionando end-to-end por DOM (classic); hybrid
+  no capta la URL tras el cambio de Flow. Multi-imagen funcionando. Video en
   curso. Recorder configurable aparcado.
 - Comandos clave:
   - `make cuentas` — ver cuentas y la próxima en rotar.
   - `make importar CHROME=<correo> ACCOUNT=<nombre>` — renovar/clonar sesión.
   - `make t2ih PROMPT="..."` — generar imagen (estrategia auto).
   - `FLOW_STRATEGY=classic make t2ih PROMPT="..."` — forzar el respaldo.
+  - `FLOW_MULTI=true ACCOUNT=smithmonsterr make t2ih PROMPT_FILE=...` — varias
+    imágenes de un mensaje.
+  - `make health` — ¿cambió la UI? (sin créditos).
   - `.venv/bin/python -m pytest -q tests` — tests sin créditos.
 - Proyecto en el hub (`hub-harness`) con el slug `wrapper-nanobanana-flow`
   (hitos y decisiones registrados).

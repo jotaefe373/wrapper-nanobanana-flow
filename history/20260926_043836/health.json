@@ -1,0 +1,10 @@
+{
+ "account": "?",
+ "when": "2026-09-26T04:38:36.210748",
+ "trigger": "cambio: configuracion",
+ "selectors": {
+  "configuracion": true,
+  "editor_prompt": true,
+  "iniciar_generacion": true
+ }
+}

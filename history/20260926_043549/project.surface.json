@@ -1,0 +1,94 @@
+[
+ {
+  "role": "a",
+  "name": "Skip to main content"
+ },
+ {
+  "role": "button",
+  "name": "Inicio"
+ },
+ {
+  "role": "button",
+  "name": "Más opciones del proyecto"
+ },
+ {
+  "role": "button",
+  "name": "Buscar"
+ },
+ {
+  "role": "button",
+  "name": "Opciones de filtrado y ordenación"
+ },
+ {
+  "role": "button",
+  "name": "Menú para añadir contenido multimedia"
+ },
+ {
+  "role": "button",
+  "name": "Ayuda del producto"
+ },
+ {
+  "role": "button",
+  "name": "Configuración de cuadrícula de recuadros"
+ },
+ {
+  "role": "button",
+  "name": "Más opciones"
+ },
+ {
+  "role": "button",
+  "name": "Información de la cuenta"
+ },
+ {
+  "role": "a",
+  "name": "apps_spark_2\nHerramientas"
+ },
+ {
+  "role": "a",
+  "name": "delete\nPapelera"
+ },
+ {
+  "role": "button",
+  "name": "Abrir historial de la sesión"
+ },
+ {
+  "role": "button",
+  "name": "Iniciar sesión nueva"
+ },
+ {
+  "role": "button",
+  "name": "Cerrar"
+ },
+ {
+  "role": "button",
+  "name": "Crea un moodboard visual"
+ },
+ {
+  "role": "button",
+  "name": "Elabora un storyboard"
+ },
+ {
+  "role": "button",
+  "name": "Enséñame las combinaciones de teclas"
+ },
+ {
+  "role": "button",
+  "name": "Añadir ingredientes a ventana para peticiones"
+ },
+ {
+  "role": "button",
+  "name": "Activador de ajustes"
+ },
+ {
+  "role": "button",
+  "name": "Instrucciones del agente"
+ },
+ {
+  "role": "button",
+  "name": "Ajustes"
+ },
+ {
+  "role": "button",
+  "name": "Iniciar generación"
+ }
+]

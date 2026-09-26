@@ -99,3 +99,34 @@ def test_changed_keys_sin_cambios():
 def test_changed_keys_solo_claves_compartidas():
     # una clave nueva en current (no estaba antes) no cuenta como cambio
     assert changed_keys({"a": True, "nueva": True}, {"a": True}) == []
+
+
+def test_multi_deduplica_la_misma_imagen_con_distinta_firma():
+    from flow.generate import _distinct
+    a1 = "https://flow-content.google/image/abc?sig=1"
+    a2 = "https://flow-content.google/image/abc?sig=2"
+    b = "https://flow-content.google/image/def?sig=1"
+    assert _distinct([a1, a2, b]) == [a1, b]
+
+
+ASB = "https://flow.google.com/asb/AB-nOUZ5gq=s512-rw?authuser=1"
+
+
+def test_asb_miniatura_y_original_son_la_misma_imagen():
+    from flow.generate import _distinct
+    from flow.results import media_key
+    grande = "https://flow.google.com/asb/AB-nOUZ5gq=s0?authuser=1"
+    assert media_key(ASB) == media_key(grande)
+    assert _distinct([ASB, grande, "https://flow.google.com/asb/OTRA=s512-rw?authuser=1"]) == [
+        ASB, "https://flow.google.com/asb/OTRA=s512-rw?authuser=1"]
+
+
+def test_asb_original_conserva_authuser():
+    from flow.results import full_size_url
+    # sin ?authuser Flow responde 403
+    assert full_size_url(ASB) == "https://flow.google.com/asb/AB-nOUZ5gq=s0?authuser=1"
+
+
+def test_googleusercontent_original_como_antes():
+    from flow.results import full_size_url
+    assert full_size_url("https://lh3.googleusercontent.com/abc=w400-h300") == "https://lh3.googleusercontent.com/abc=s0"

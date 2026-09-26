@@ -20,6 +20,7 @@ from playwright.async_api import Page
 
 from core.accounts import flow_url, rotation_order
 from core.logger import get_logger
+from flow.generate import NEW_PROJECT_RE, SETTINGS_RE
 
 log = get_logger("snapshot")
 
@@ -27,11 +28,11 @@ HISTORY_DIR = Path("history")
 DATA_ENDPOINT = "flow.google.com/_/AiSandboxAngularFrontend/data/"
 
 # Selectores de los que dependen los macros. Fuente unica para health-check y snapshot.
-# kind: "role" (rol+nombre), "css" (selector), "text" (texto visible).
+# kind: "role" (rol+nombre exacto; admite alternativas "A|B"), "css" (selector), "text" (texto visible).
 CRITICAL_SELECTORS = [
-    {"key": "proyecto_nuevo", "kind": "text", "value": "Proyecto nuevo", "screen": "home",
+    {"key": "proyecto_nuevo", "kind": "text", "value": "Proyecto nuevo|New project", "screen": "home",
      "why": "abrir un proyecto para generar"},
-    {"key": "configuracion", "kind": "role", "role": "button", "name": "Configuración", "screen": "project",
+    {"key": "configuracion", "kind": "role", "role": "button", "name": "Configuración|Ajustes", "screen": "project",
      "why": "abrir aspecto/modelo"},
     {"key": "editor_prompt", "kind": "css", "value": "[contenteditable=true]", "screen": "project",
      "why": "escribir el prompt"},
@@ -102,8 +103,8 @@ async def _present(page: Page, sel: dict) -> bool:
         if sel["kind"] == "css":
             return await page.locator(sel["value"]).count() > 0
         if sel["kind"] == "text":
-            return await page.get_by_text(sel["value"], exact=False).count() > 0
-        return await page.get_by_role(sel["role"], name=sel["name"], exact=True).count() > 0
+            return await page.get_by_text(re.compile(sel["value"])).count() > 0
+        return await page.get_by_role(sel["role"], name=re.compile(f"^(?:{sel['name']})$")).count() > 0
     except Exception:
         return False
 
@@ -124,7 +125,7 @@ async def health_check(page: Page, screens: tuple[str, ...] = ("home", "project"
         await page.wait_for_timeout(1500)
         await check("home")
         try:
-            await page.get_by_text("Proyecto nuevo").first.click()
+            await page.get_by_text(NEW_PROJECT_RE).first.click()
             await page.wait_for_timeout(6000)
         except Exception:
             log.warning("No se pudo abrir 'Proyecto nuevo' — la UI pudo cambiar")
@@ -163,14 +164,14 @@ async def capture(page: Page, out: Path, account: str) -> dict:
             report[sel["key"]] = await _present(page, sel)
 
     try:
-        await page.get_by_text("Proyecto nuevo").first.click()
+        await page.get_by_text(NEW_PROJECT_RE).first.click()
         await page.wait_for_timeout(6000)
         await snap("project")
         for sel in CRITICAL_SELECTORS:
             if sel["screen"] == "project":
                 report[sel["key"]] = await _present(page, sel)
         try:
-            await page.get_by_role("button", name="Configuración", exact=True).click()
+            await page.get_by_role("button", name=SETTINGS_RE).click()
             await page.wait_for_timeout(2000)
             await snap("config")
         except Exception:

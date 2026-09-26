@@ -79,7 +79,8 @@ async def _run_with_account(
 
             # El macro guarda la imagen y devuelve su ruta; si no, capturamos la pagina
             if saved:
-                return Path(saved)
+                # FLOW_MULTI devuelve una lista de rutas
+                return [Path(x) for x in saved] if isinstance(saved, list) else Path(saved)
             if output_path:
                 output_path.parent.mkdir(parents=True, exist_ok=True)
                 await page.screenshot(path=str(output_path))

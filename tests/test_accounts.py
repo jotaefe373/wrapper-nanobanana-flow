@@ -2,7 +2,7 @@ import pytest
 
 from core import accounts
 from core.config import settings
-from flow.credits import NO_CREDITS_RE
+from flow.credits import NO_CREDITS_RE, REJECTED_RE
 
 
 @pytest.fixture(autouse=True)
@@ -89,6 +89,19 @@ def test_detecta_avisos_de_creditos(text):
 @pytest.mark.parametrize("text", ["100 créditos de IA", "Crear", "Nano Banana 2", "Imagen generada"])
 def test_no_confunde_textos_normales(text):
     assert not NO_CREDITS_RE.search(text)
+
+
+@pytest.mark.parametrize("text", [
+    "Se ha producido un error. Inténtalo de nuevo.",
+    "I wasn't able to generate that character sheet because it triggered a safety filter.",
+])
+def test_detecta_rechazo_del_prompt(text):
+    assert REJECTED_RE.search(text)
+
+
+@pytest.mark.parametrize("text", ["¿Qué quieres crear?", "Imagen generada", "Iniciar generación"])
+def test_rechazo_no_confunde_textos_normales(text):
+    assert not REJECTED_RE.search(text)
 
 
 def test_flow_url_por_cuenta():

@@ -10,6 +10,7 @@ generate.py — Flujo de generacion en Flow, con dos estrategias.
 El paso de *generar* es identico para ambas; solo cambia como se obtiene el archivo.
 """
 
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -17,18 +18,23 @@ from playwright.async_api import Page, Response
 
 from core.config import settings
 from core.logger import get_logger
-from flow.credits import NoCreditsError, NO_CREDITS_RE
-from flow.results import extract_media_urls, media_kind
+from flow.credits import GenerationRejectedError, NoCreditsError, NO_CREDITS_RE, REJECTED_RE
+from flow.results import extract_media_urls, full_size_url, media_key, media_kind
 
 log = get_logger("generate")
 
 OUTPUT_DIR = Path("output")
 DATA_ENDPOINT = "flow.google.com/_/AiSandboxAngularFrontend/data/"
+# Flow dejo este boton sin traducir (2026-09): aceptar ambos idiomas
+NEW_PROJECT_RE = re.compile(r"Proyecto nuevo|New project")
+# "Configuracion" paso a llamarse "Ajustes" (2026-09)
+SETTINGS_RE = re.compile(r"^(Configuración|Ajustes)$")
 
 _PICK_IMAGES_JS = """() => [...document.querySelectorAll('img')]
     .map(i => ({src: i.currentSrc || i.src, w: i.naturalWidth, h: i.naturalHeight, rw: i.width, rh: i.height}))
     .filter(o => o.src && !o.src.includes('/ogw/') && o.rw > 150 && o.rh > 150
-                 && (o.src.includes('flow-content') || o.src.includes('googleusercontent') || o.src.startsWith('blob:')))"""
+                 && (o.src.includes('flow-content') || o.src.includes('googleusercontent')
+                     || o.src.includes('/asb/') || o.src.startsWith('blob:')))"""
 
 
 # ── Pasos de UI (compartidos) ─────────────────────────────────────
@@ -50,18 +56,18 @@ async def _pause(page: Page, ms: int, stealth: bool) -> None:
 
 
 async def new_project(page: Page, stealth: bool = False) -> None:
-    await _click(page, page.get_by_text("Proyecto nuevo").first, stealth)
+    await _click(page, page.get_by_text(NEW_PROJECT_RE).first, stealth)
     await _pause(page, 6000, stealth)
 
 
 async def set_image_defaults(page: Page, aspect: str = "1:1", count: str = "x1", stealth: bool = False) -> None:
     """Fija en Configuracion: sin confirmacion, aspecto y cantidad. No bloqueante."""
     try:
-        await _click(page, page.get_by_role("button", name="Configuración", exact=True), stealth)
+        await _click(page, page.get_by_role("button", name=SETTINGS_RE), stealth)
         await _pause(page, 2000, stealth)
         for name in (aspect, count):
             try:
-                await page.get_by_role("radio", name=name, exact=True).first.click(timeout=5000)
+                await page.get_by_role("radio", name=re.compile(rf"{re.escape(name)}$")).first.click(timeout=5000)
             except Exception:
                 log.info("Opcion '%s' no encontrada en Configuracion (se ignora)", name)
         await _click(page, page.get_by_role("button", name="Guardar"), stealth)
@@ -80,6 +86,21 @@ async def enter_prompt(page: Page, prompt: str, stealth: bool = False) -> None:
 async def click_generate(page: Page, stealth: bool = False) -> None:
     await _click(page, page.get_by_role("button", name="Iniciar generación"), stealth)
     log.info("Generando...")
+
+
+async def check_blockers(page: Page) -> None:
+    """Falla rapido si Flow avisa que no hay creditos o rechazo el prompt."""
+    try:
+        if await page.get_by_text(NO_CREDITS_RE).count():
+            raise NoCreditsError("Flow indica que no quedan creditos")
+        rejected = page.get_by_text(REJECTED_RE)
+        if await rejected.count():
+            raise GenerationRejectedError(
+                f"Flow rechazo el prompt (reescribilo): {(await rejected.last.inner_text())[:160]!r}")
+    except (NoCreditsError, GenerationRejectedError):
+        raise
+    except Exception:
+        pass
 
 
 # ── Estrategia hybrid: leer el resultado de la red ────────────────
@@ -110,24 +131,52 @@ class ResultCapture:
     async def wait_new(self, page: Page, timeout_s: int, kind: str | None = None) -> str | None:
         """Espera una URL de media nueva (opcionalmente de un tipo: image/video).
 
-        Lanza NoCreditsError si Flow avisa que no quedan creditos.
+        Lanza NoCreditsError / GenerationRejectedError si Flow avisa que no puede.
         """
         for _ in range(timeout_s // 2):
             await page.wait_for_timeout(2000)
             for url in self.media[self._baseline:]:
                 if kind is None or media_kind(url) == kind:
                     return url
-            try:
-                if await page.get_by_text(NO_CREDITS_RE).count():
-                    raise NoCreditsError("Flow indica que no quedan creditos")
-            except NoCreditsError:
-                raise
-            except Exception:
-                pass
+            await check_blockers(page)
         return None
 
 
-async def download_url(page: Page, url: str, out_dir: Path) -> Path:
+    async def wait_all(self, page: Page, timeout_s: int, settle_s: int) -> tuple[list[str], int]:
+        """Multi: vigila red y DOM a la vez; corta cuando pasan settle_s sin imagenes nuevas.
+
+        Devuelve (urls por red, cantidad en el DOM). Si la red no trajo nada pero el
+        DOM si, el llamador baja del DOM sin esperar el timeout.
+        """
+        t, last_change, seen = 0, 0, (0, 0)
+        while t < timeout_s:
+            await page.wait_for_timeout(2000)
+            t += 2
+            urls = _distinct([u for u in self.media[self._baseline:] if media_kind(u) == "image"])
+            try:
+                dom = len(_distinct([o["src"] for o in await page.evaluate(_PICK_IMAGES_JS)]))
+            except Exception:
+                dom = seen[1]
+            if (len(urls), dom) != seen:
+                seen, last_change = (len(urls), dom), t
+                log.info("Multi: %ds — red %d, pagina %d imagen(es)", t, len(urls), dom)
+            elif max(seen) and t - last_change >= settle_s:
+                return urls, dom
+            await check_blockers(page)
+        return urls, seen[1]
+
+def _distinct(urls: list[str]) -> list[str]:
+    """La misma imagen puede llegar con varias firmas o tamanos: se deduplica por identidad."""
+    seen, out = set(), []
+    for u in urls:
+        key = media_key(u)
+        if key not in seen:
+            seen.add(key)
+            out.append(u)
+    return out
+
+
+async def download_url(page: Page, url: str, out_dir: Path, idx: int = 1) -> Path:
     """Descarga la URL firmada con la sesion autenticada."""
     out_dir.mkdir(parents=True, exist_ok=True)
     r = await page.context.request.get(url)
@@ -136,7 +185,7 @@ async def download_url(page: Page, url: str, out_dir: Path) -> Path:
     body = await r.body()
     ct = r.headers.get("content-type", "")
     ext = ".mp4" if media_kind(url) == "video" else (".jpeg" if "jpeg" in ct else ".png")
-    save_path = out_dir / f"flow_{datetime.now():%Y%m%d_%H%M%S}_1{ext}"
+    save_path = out_dir / f"flow_{datetime.now():%Y%m%d_%H%M%S}_{idx}{ext}"
     save_path.write_bytes(body)
     log.info("Resultado descargado (hibrido, %s): %s (%d bytes)", media_kind(url), save_path, len(body))
     return save_path
@@ -151,13 +200,7 @@ async def wait_images_dom(page: Page, timeout_s: int = 180) -> list[dict]:
         imgs = await page.evaluate(_PICK_IMAGES_JS)
         if imgs:
             return imgs
-        try:
-            if await page.get_by_text(NO_CREDITS_RE).count():
-                raise NoCreditsError("Flow indica que no quedan creditos")
-        except NoCreditsError:
-            raise
-        except Exception:
-            pass
+        await check_blockers(page)
     raise TimeoutError(f"La imagen no aparecio en {timeout_s}s")
 
 
@@ -172,7 +215,7 @@ async def _download_native(page: Page, out_dir: Path, quality: str) -> Path | No
             await page.get_by_role("menuitem", name=quality).first.click()
         download = await info.value
         ext = Path(download.suggested_filename).suffix or ".png"
-        save_path = out_dir / f"flow_{datetime.now():%Y%m%d_%H%M%S}_1{ext}"
+        save_path = out_dir / f"flow_{datetime.now():%Y%m%d_%H%M%S}_{idx}{ext}"
         await download.save_as(str(save_path))
         log.info("Resultado descargado (classic %s): %s", quality, save_path)
         return save_path
@@ -187,7 +230,7 @@ async def _download_src(page: Page, images: list[dict], out_dir: Path) -> Path:
     for o in sorted(images, key=lambda x: x["w"] * x["h"], reverse=True):
         src = o["src"]
         try:
-            variants = [src.split("=")[0] + "=s0", src] if "googleusercontent" in src else [src]
+            variants = list(dict.fromkeys([full_size_url(src), src]))
             for v in variants:
                 r = await page.context.request.get(v)
                 if r.ok:
@@ -203,6 +246,27 @@ async def _download_src(page: Page, images: list[dict], out_dir: Path) -> Path:
     return save_path
 
 
+async def save_all_dom(page: Page, out_dir: Path, settle_s: int) -> list[Path]:
+    """Multi, respaldo: espera a que el DOM deje de sumar imagenes y baja todas por src."""
+    await wait_images_dom(page)
+    seen, still = 0, 0
+    while still < settle_s:  # settle_s=0: el llamador ya espero a que se estabilice
+        await page.wait_for_timeout(2000)
+        n = len(_distinct([o["src"] for o in await page.evaluate(_PICK_IMAGES_JS)]))
+        seen, still = (n, 0) if n != seen else (seen, still + 2)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stamp, paths = f"{datetime.now():%Y%m%d_%H%M%S}", []
+    for i, src in enumerate(_distinct([o["src"] for o in await page.evaluate(_PICK_IMAGES_JS)]), 1):
+        r = await page.context.request.get(full_size_url(src))
+        if r.ok and len(body := await r.body()) > 15000:
+            ext = ".jpeg" if "jpeg" in r.headers.get("content-type", "") else ".png"
+            path = out_dir / f"flow_{stamp}_{i}{ext}"
+            path.write_bytes(body)
+            paths.append(path)
+    log.info("Multi (DOM): %d imagen(es) guardada(s)", len(paths))
+    return paths
+
+
 async def save_classic(page: Page, out_dir: Path, quality: str) -> Path:
     """Espera el DOM y descarga por el editor (con respaldos)."""
     images = await wait_images_dom(page)
@@ -215,10 +279,10 @@ async def set_video_defaults(page: Page, model: str | None = None, stealth: bool
     """Fija el modelo de generacion de video en Configuracion. No bloqueante."""
     model = model or settings.video_model
     try:
-        await _click(page, page.get_by_role("button", name="Configuración", exact=True), stealth)
+        await _click(page, page.get_by_role("button", name=SETTINGS_RE), stealth)
         await _pause(page, 2000, stealth)
         try:
-            await page.get_by_role("button", name="Modelo predeterminado de generación de video").click(timeout=5000)
+            await page.get_by_role("button", name=re.compile(r"Modelo predeterminado de generación de v[ií]deo")).click(timeout=5000)
             await page.wait_for_timeout(1200)
             await page.get_by_role("menuitem", name=model).first.click(timeout=5000)
             await page.wait_for_timeout(800)
@@ -329,14 +393,18 @@ async def generate_and_save(
     strategy: str | None = None,
     quality: str | None = None,
     out_dir: Path | None = None,
-    aspect: str = "1:1",
+    aspect: str | None = None,
     count: str = "x1",
     timeout_s: int = 180,
     stealth: bool = False,
-) -> Path:
-    """Flujo completo de imagen: setup -> generar -> guardar segun estrategia."""
+) -> Path | list[Path]:
+    """Flujo completo de imagen: setup -> generar -> guardar segun estrategia.
+
+    Con FLOW_MULTI=true devuelve todas las imagenes que produzca el agente (lista).
+    """
     out_dir = out_dir or OUTPUT_DIR
     quality = (quality or settings.image_quality).upper()
+    aspect = aspect or settings.image_aspect
     strat = resolve_strategy(strategy, quality)
 
     capture = ResultCapture(page)
@@ -347,6 +415,13 @@ async def generate_and_save(
 
     capture.mark()
     await click_generate(page, stealth)
+
+    if settings.multi:
+        urls, dom = await capture.wait_all(page, timeout_s=max(timeout_s, 600), settle_s=settings.multi_settle_s)
+        if len(urls) >= dom and urls:
+            return [await download_url(page, u, out_dir, i) for i, u in enumerate(urls, 1)]
+        log.info("Multi: la red trajo %d y la pagina muestra %d; bajo del DOM", len(urls), dom)
+        return await save_all_dom(page, out_dir, settle_s=0)
 
     if strat in ("hybrid", "auto"):
         url = await capture.wait_new(page, timeout_s if strat == "hybrid" else 150)

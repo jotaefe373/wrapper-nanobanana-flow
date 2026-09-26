@@ -19,6 +19,9 @@ class Settings(BaseSettings):
 
     # Imagen
     image_quality: str = "1K"       # 1K original, 2K/4K reescalado
+    image_aspect: str = "1:1"       # 16:9 | 4:3 | 1:1 | 3:4 | 9:16 -> FLOW_IMAGE_ASPECT
+    multi: bool = False             # bajar todas las imagenes que devuelva el agente -> FLOW_MULTI
+    multi_settle_s: int = 30        # multi: segundos sin imagenes nuevas para dar por terminado
     strategy: str = "auto"          # auto | hybrid | classic (como se obtiene el resultado) -> FLOW_STRATEGY
     auto_snapshot: bool = True      # auto-capturar un snapshot si cambia un selector critico
     video_model: str = "Veo 3.1 - Fast"  # modelo de video -> FLOW_VIDEO_MODEL

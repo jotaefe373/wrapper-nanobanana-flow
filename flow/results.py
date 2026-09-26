@@ -38,3 +38,26 @@ def extract_media_urls(text: str) -> list[str]:
 def media_kind(url: str) -> str:
     """'video' o 'image' segun la URL."""
     return "video" if "/video/" in url else "image"
+
+
+# Imagenes que la pagina sirve con tamano en el sufijo: .../asb/<id>=s512-rw?authuser=1
+# (flow.google.com/asb, desde 2026-09) o .../<id>=s512 (googleusercontent).
+_SIZE_SUFFIX_RE = re.compile(r"=[swh]\d[^/?]*$")
+
+
+def media_key(url: str) -> str:
+    """Identidad de una imagen sin firma ni tamano: la misma foto en otra resolucion da la misma clave."""
+    return _SIZE_SUFFIX_RE.sub("", url.split("?")[0])
+
+
+def full_size_url(src: str) -> str:
+    """Variante a resolucion original (=s0) de una miniatura de la pagina.
+
+    En /asb/ la query (?authuser=N) es obligatoria: sin ella responde 403.
+    """
+    if "/asb/" in src:
+        base, _, query = src.partition("?")
+        return f"{_SIZE_SUFFIX_RE.sub('', base)}=s0" + (f"?{query}" if query else "")
+    if "googleusercontent" in src:
+        return src.split("=")[0] + "=s0"
+    return src

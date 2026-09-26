@@ -72,6 +72,8 @@ a costa de exponer mas cookies, se puede volver al conjunto de 11 (las 6 + `HSID
 | `ACCOUNT=nombre` | Forzar una cuenta (default: rotar entre todas) |
 
 La calidad de descarga se controla con `FLOW_IMAGE_QUALITY` en `.env`: `1K` (original, por defecto), `2K` o `4K` (reescalados por Flow).
+El aspecto, con `FLOW_IMAGE_ASPECT`: `16:9`, `4:3`, `1:1` (por defecto), `3:4` o `9:16` — p. ej. `FLOW_IMAGE_ASPECT=9:16 make t2ih ...`.
+Varias imagenes de un mensaje: ver [Varias imagenes por mensaje](#varias-imagenes-por-mensaje-flow_multi).
 
 ## Estrategias de descarga (`FLOW_STRATEGY`)
 
@@ -87,6 +89,41 @@ Como se obtiene la imagen tras generarla:
 
 El unico paso que siempre pasa por la UI es *disparar la generacion* (Flow lo
 protege con un token anti-abuso por accion que no se puede reproducir headless).
+
+## Varias imagenes por mensaje (`FLOW_MULTI`)
+
+El agente de Flow puede devolver varias imagenes a partir de **un solo mensaje**
+(p. ej. "Generate 5 separate images: Image 1 … Image 5 …"). Con `FLOW_MULTI=true`
+el wrapper las baja todas, numeradas `flow_<ts>_1`, `_2`, …:
+
+```bash
+FLOW_MULTI=true FLOW_IMAGE_ASPECT=3:4 make t2ih PROMPT_FILE=prompts/x.json ACCOUNT=smithmonsterr
+```
+
+- Vigila **red y pagina a la vez** y corta cuando pasan `FLOW_MULTI_SETTLE_S`
+  (30 s) sin imagenes nuevas. El log muestra cuando llega cada una
+  (`Multi: 46s — red 0, pagina 5 imagen(es)`).
+- Flow las entrega **en tanda** (~45 s para 4-5 imagenes): una corrida completa
+  ronda 1,5 min.
+- Baja del canal que traiga mas imagenes. Hoy la red no trae las URLs y se usa
+  la pagina (ver la nota de `/asb/` abajo).
+- La misma imagen aparece como miniatura y en grande: se deduplica por identidad
+  (sin firma ni sufijo de tamano), no por URL.
+- **Depende de la cuenta**: `smithmonsterr` genera varias por mensaje;
+  `zerossse` no. Forzar la cuenta con `ACCOUNT=`.
+- El agente a veces suma una imagen extra (una vista de frente de referencia).
+
+**Imagenes de la pagina (`/asb/`, desde 2026-09).** Flow sirve los resultados en
+`flow.google.com/asb/<id>=s512-rw?authuser=N` (miniatura webp). La original sale
+con `=s0` **conservando `?authuser=N`** (sin ella responde 403). Lo resuelven
+`full_size_url` y `media_key` en `flow/results.py`.
+
+## Si Flow rechaza el prompt
+
+Si el agente de Flow rechaza el pedido (filtro de seguridad: "Se ha producido un
+error. Inténtalo de nuevo."), el wrapper corta enseguida con
+`GenerationRejectedError` en vez de esperar al timeout. No rota de cuenta: hay
+que reescribir el prompt. El texto se detecta con `REJECTED_RE` en `flow/credits.py`.
 
 ## Historial trazable (`history/`)
 
@@ -204,6 +241,9 @@ FLOW_BASE_URL=https://flow.google.com/
 FLOW_ACCOUNT=                  # Forzar una cuenta (sin rotar)
 FLOW_USE_CREDENTIALS=false     # Usar credentials.enc aunque haya perfil
 FLOW_CREDENTIALS_KEY=          # Para export/import de credenciales
+FLOW_IMAGE_ASPECT=1:1          # 16:9 | 4:3 | 1:1 | 3:4 | 9:16
+FLOW_MULTI=false               # true: bajar todas las imagenes de un mensaje
+FLOW_MULTI_SETTLE_S=30         # multi: segundos sin imagenes nuevas para cortar
 ```
 
 ## Tech Stack

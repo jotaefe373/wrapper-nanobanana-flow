@@ -1,0 +1,10 @@
+{
+ "account": "zerossse",
+ "when": "2026-09-26T04:36:30.257897",
+ "selectors": {
+  "proyecto_nuevo": true,
+  "configuracion": false,
+  "editor_prompt": true,
+  "iniciar_generacion": true
+ }
+}

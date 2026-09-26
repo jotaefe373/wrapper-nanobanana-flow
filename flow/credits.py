@@ -18,6 +18,20 @@ NO_CREDITS_RE = re.compile(
 )
 
 
+# Flow rechazo el prompt (filtro de seguridad o error de generacion). Cambiar de
+# cuenta no sirve: hay que reescribir el prompt, asi que se falla rapido.
+REJECTED_RE = re.compile(
+    r"safety filter|filtro de seguridad"
+    r"|Se ha producido un error\. Int[eé]ntalo de nuevo"
+    r"|wasn't able to generate|no (he )?pude generar",
+    re.IGNORECASE,
+)
+
+
+class GenerationRejectedError(RuntimeError):
+    """Flow rechazo la generacion (tipicamente por el filtro de seguridad)."""
+
+
 class NoCreditsError(RuntimeError):
     """La cuenta no tiene creditos suficientes para generar."""
 
