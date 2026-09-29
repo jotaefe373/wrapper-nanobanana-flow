@@ -153,8 +153,10 @@ leer el resultado.
   detalle físico/de vestimenta. Diseñar personajes originales adultos.
 
 ## Preguntas abiertas / ideas futuras
-- **Video**: en curso (otro agente lo está implementando reusando la estrategia
-  hybrid; el extractor ya maneja `flow-content.google/video/...`).
+- **Video**: funcionando (2026-09-29) en `flow/video.py` — flujo por proyecto:
+  personajes/lugares como imágenes y clips que los citan con `@`; tope de puntos por
+  la confirmación del agente. Prueba real Veo 3.1 Lite 9:16 8 s = 10 puntos. Detalle y
+  pendientes en `docs/VIDEO.md` §0.
 - **API oficial de Gemini** (Nivel 4): opción para escala, pero paga por imagen a
   parte de la suscripción — solo si se acepta ese costo.
 - **Recorder configurable** (aparcado): flujos-como-datos + depurador paso a paso,
@@ -172,8 +174,8 @@ leer el resultado.
 
 ## Cómo retomar
 - Estado (2026-09-26): imágenes funcionando end-to-end por DOM (classic); hybrid
-  no capta la URL tras el cambio de Flow. Multi-imagen funcionando. Video en
-  curso. Recorder configurable aparcado.
+  no capta la URL tras el cambio de Flow. Multi-imagen funcionando. Video
+  funcionando (`make clip`, ver docs/VIDEO.md). Recorder configurable aparcado.
 - Comandos clave:
   - `make cuentas` — ver cuentas y la próxima en rotar.
   - `make importar CHROME=<correo> ACCOUNT=<nombre>` — renovar/clonar sesión.

@@ -24,8 +24,10 @@ class Settings(BaseSettings):
     multi_settle_s: int = 30        # multi: segundos sin imagenes nuevas para dar por terminado
     strategy: str = "auto"          # auto | hybrid | classic (como se obtiene el resultado) -> FLOW_STRATEGY
     auto_snapshot: bool = True      # auto-capturar un snapshot si cambia un selector critico
-    video_model: str = "Veo 3.1 - Fast"  # modelo de video -> FLOW_VIDEO_MODEL
-    video_timeout: int = 480        # segundos de espera del video (tarda minutos)
+    video_model: str = "Veo 3.1 - Lite"  # modelo de video (lite|fast|quality|omni o nombre) -> FLOW_VIDEO_MODEL
+    video_aspect: str = "9:16"      # 16:9 | 9:16 -> FLOW_VIDEO_ASPECT
+    video_max_credits: int | None = 10  # tope de puntos por mensaje; aborta antes de aprobar -> FLOW_VIDEO_MAX_CREDITS
+    video_timeout: int = 900        # segundos de espera del video (cola + generacion: minutos)
     output_retention_days: int = 0  # 0 = conservar siempre; >0 = borrar imagenes mas viejas
 
     # Cuentas: forzar una (sin rotar) y/o usar credentials.enc aunque haya perfil

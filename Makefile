@@ -1,4 +1,4 @@
-.PHONY: setup login cuentas importar snapshot health snapshot-diff history-ui rec r rh rc rch t2i t2ih t2is t2ish t2v t2vh ls key creds clean help
+.PHONY: setup login cuentas importar snapshot health snapshot-diff history-ui rec r rh rc rch t2i t2ih t2is t2ish t2v t2vh creditos ingredientes clip ls key creds clean help
 
 VENV := .venv
 PY := $(VENV)/bin/python
@@ -68,6 +68,18 @@ t2v: $(VENV) ## Text-to-video visible — make t2v PROMPT="x" o PROMPT_FILE=x.js
 
 t2vh: $(VENV) ## Text-to-video headless — make t2vh PROMPT="x" o PROMPT_FILE=x.json
 	$(PY) cli.py --replay text-to-video $(PROMPT_ARG) $(ACCOUNT_ARG)
+
+# Video en un proyecto (flow/video.py): JSON a stdout. PROYECTO=<url> sigue en el mismo proyecto.
+VIDEO_ARGS = $(PROMPT_ARG) --account $(ACCOUNT) $(if $(PROYECTO),--proyecto "$(PROYECTO)",) $(if $(MAX),--max-credits $(MAX),) $(if $(ASPECT),--aspect $(ASPECT),)
+
+creditos: $(VENV) ## Saldo de puntos de Flow (sin gastar) — make creditos ACCOUNT=x
+	$(PY) -m flow.video creditos --account $(ACCOUNT)
+
+ingredientes: $(VENV) ## Imagen(es) de personaje/lugar en el proyecto — make ingredientes ACCOUNT=x PROMPT="..." [N=1] [PROYECTO=url]
+	$(PY) -m flow.video imagenes $(VIDEO_ARGS) --n $(or $(N),1)
+
+clip: $(VENV) ## Clip de video con tope — make clip ACCOUNT=x PROYECTO=url PROMPT="@{mujer} entra a @{cafe}..." [MODEL=lite] [MAX=10]
+	$(PY) -m flow.video clip $(VIDEO_ARGS) $(if $(MODEL),--model $(MODEL),)
 
 ls: $(VENV) ## Listar macros grabados
 	$(PY) cli.py --list
