@@ -1,0 +1,266 @@
+[
+ {
+  "role": "a",
+  "name": "Skip to main content"
+ },
+ {
+  "role": "a",
+  "name": "Iniciar sesión"
+ },
+ {
+  "role": "a",
+  "name": "Descripción general"
+ },
+ {
+  "role": "a",
+  "name": "Modelos"
+ },
+ {
+  "role": "a",
+  "name": "Funciones"
+ },
+ {
+  "role": "a",
+  "name": "Herramientas"
+ },
+ {
+  "role": "a",
+  "name": "Flow Sessions"
+ },
+ {
+  "role": "a",
+  "name": "Precios"
+ },
+ {
+  "role": "a",
+  "name": "X (Twitter)"
+ },
+ {
+  "role": "a",
+  "name": "Instagram"
+ },
+ {
+  "role": "a",
+  "name": "Discord"
+ },
+ {
+  "role": "button",
+  "name": "Más opciones"
+ },
+ {
+  "role": "button",
+  "name": "Crear con Google Flow"
+ },
+ {
+  "role": "a",
+  "name": "Suscripciones de IA de Google"
+ },
+ {
+  "role": "a",
+  "name": "Preguntas frecuentes"
+ },
+ {
+  "role": "button",
+  "name": "Pausar video"
+ },
+ {
+  "role": "button",
+  "name": "Reproducir video destacado"
+ },
+ {
+  "role": "button",
+  "name": "Probar en Google Flow"
+ },
+ {
+  "role": "button",
+  "name": "Más información"
+ },
+ {
+  "role": "button",
+  "name": "Previous model"
+ },
+ {
+  "role": "button",
+  "name": "Next model"
+ },
+ {
+  "role": "button",
+  "name": "Diapositiva anterior"
+ },
+ {
+  "role": "button",
+  "name": "Siguiente diapositiva"
+ },
+ {
+  "role": "button",
+  "name": "Plan"
+ },
+ {
+  "role": "button",
+  "name": "Crear"
+ },
+ {
+  "role": "button",
+  "name": "Definir mejor"
+ },
+ {
+  "role": "button",
+  "name": "Superposición de texto\nAgrega texto animado a tus videos"
+ },
+ {
+  "role": "a",
+  "name": "Explorar"
+ },
+ {
+  "role": "button",
+  "name": "Cambio de tamaño de video\nCambia el tamaño de tus videos a c"
+ },
+ {
+  "role": "button",
+  "name": "Editor de imágenes\nTransforma objetos, agrega texto y ajusta"
+ },
+ {
+  "role": "button",
+  "name": "Storyboard Studio\nEscribe un guion, crea el elenco y visuali"
+ },
+ {
+  "role": "button",
+  "name": "Efectos de sombreador\nAplica filtros visuales personalizable"
+ },
+ {
+  "role": "button",
+  "name": "Maquetas\nCompón tu imagen en diferentes entornos"
+ },
+ {
+  "role": "button",
+  "name": "Ribbit\nManeja la reproducción de videos en vivo manteniendo "
+ },
+ {
+  "role": "button",
+  "name": "Convergencia\nRenderiza tus bocetos"
+ },
+ {
+  "role": "button",
+  "name": "Radiografía del personaje\nDesarrolla tus personajes y su his"
+ },
+ {
+  "role": "button",
+  "name": "pixelBento\nAplica efectos de posedición, como lo-fi y glitch"
+ },
+ {
+  "role": "button",
+  "name": "Arquitectura de cuadrículas\nCrea cuadrículas de imágenes y e"
+ },
+ {
+  "role": "button",
+  "name": "Scout360\nCaptura un entorno de 360 grados a partir de una im"
+ },
+ {
+  "role": "button",
+  "name": "Explora las herramientas de Google Flow"
+ },
+ {
+  "role": "a",
+  "name": "Ver la herramienta"
+ },
+ {
+  "role": "button",
+  "name": "Previous applet"
+ },
+ {
+  "role": "button",
+  "name": "Next applet"
+ },
+ {
+  "role": "button",
+  "name": "Postularse aquí"
+ },
+ {
+  "role": "button",
+  "name": "Calvin\nHerbst"
+ },
+ {
+  "role": "button",
+  "name": "COMBO y\nCharline Prat"
+ },
+ {
+  "role": "button",
+  "name": "Léo\nCannone"
+ },
+ {
+  "role": "button",
+  "name": "Katie\nLuo"
+ },
+ {
+  "role": "button",
+  "name": "OLD NEW\nRARE"
+ },
+ {
+  "role": "button",
+  "name": "Julie\nWieland"
+ },
+ {
+  "role": "button",
+  "name": "Mirar video"
+ },
+ {
+  "role": "a",
+  "name": "Mirar\nplay_arrow"
+ },
+ {
+  "role": "button",
+  "name": "Socio anterior"
+ },
+ {
+  "role": "button",
+  "name": "Socio siguiente"
+ },
+ {
+  "role": "a",
+  "name": "Mirar\n                   play_arrow"
+ },
+ {
+  "role": "button",
+  "name": "Compañero anterior"
+ },
+ {
+  "role": "button",
+  "name": "Compañero siguiente"
+ },
+ {
+  "role": "button",
+  "name": "Probar Google Flow"
+ },
+ {
+  "role": "button",
+  "name": "Sin una suscripción a un plan con IA de Google"
+ },
+ {
+  "role": "button",
+  "name": "Ver las características del plan +"
+ },
+ {
+  "role": "a",
+  "name": "Google AI Plus"
+ },
+ {
+  "role": "a",
+  "name": "Google AI Pro"
+ },
+ {
+  "role": "a",
+  "name": "Google AI Ultra"
+ },
+ {
+  "role": "a",
+  "name": "Preguntas frecuentes."
+ },
+ {
+  "role": "a",
+  "name": "Política de Privacidad"
+ },
+ {
+  "role": "a",
+  "name": "Condiciones del Servicio"
+ }
+]

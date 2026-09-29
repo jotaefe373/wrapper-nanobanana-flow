@@ -1,0 +1,66 @@
+[
+ {
+  "role": "a",
+  "name": "Skip to main content"
+ },
+ {
+  "role": "a",
+  "name": "Google Flow"
+ },
+ {
+  "role": "a",
+  "name": "Flow Music"
+ },
+ {
+  "role": "a",
+  "name": "tv\nFlow TV"
+ },
+ {
+  "role": "a",
+  "name": "Vínculo al servidor de Discord de Google Labs"
+ },
+ {
+  "role": "a",
+  "name": "Vínculo a Flow en Instagram"
+ },
+ {
+  "role": "a",
+  "name": "Vínculo a Flow en X (Twitter)"
+ },
+ {
+  "role": "button",
+  "name": "Ayuda sobre el producto"
+ },
+ {
+  "role": "button",
+  "name": "Más opciones"
+ },
+ {
+  "role": "button",
+  "name": "upgrade\nUpgrade"
+ },
+ {
+  "role": "button",
+  "name": "Ir al banner"
+ },
+ {
+  "role": "button",
+  "name": "Descartar banner"
+ },
+ {
+  "role": "a",
+  "name": "Abrir proyecto"
+ },
+ {
+  "role": "button",
+  "name": "Editar el título del proyecto"
+ },
+ {
+  "role": "button",
+  "name": "Borrar proyecto"
+ },
+ {
+  "role": "button",
+  "name": "add\nProyecto nuevo"
+ }
+]

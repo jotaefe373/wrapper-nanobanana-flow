@@ -1,0 +1,122 @@
+[
+ {
+  "role": "a",
+  "name": "Skip to main content"
+ },
+ {
+  "role": "button",
+  "name": "Página principal"
+ },
+ {
+  "role": "button",
+  "name": "Más opciones para el proyecto"
+ },
+ {
+  "role": "button",
+  "name": "Buscar"
+ },
+ {
+  "role": "button",
+  "name": "Opciones para filtrar y ordenar"
+ },
+ {
+  "role": "button",
+  "name": "Agregar menú de contenido multimedia"
+ },
+ {
+  "role": "button",
+  "name": "Ayuda sobre el producto"
+ },
+ {
+  "role": "button",
+  "name": "Configuración de la cuadrícula de tarjetas"
+ },
+ {
+  "role": "button",
+  "name": "Más opciones"
+ },
+ {
+  "role": "a",
+  "name": "apps_spark_2\nHerramientas"
+ },
+ {
+  "role": "a",
+  "name": "delete\nPapelera"
+ },
+ {
+  "role": "button",
+  "name": "Atrás"
+ },
+ {
+  "role": "button",
+  "name": "Cerrar"
+ },
+ {
+  "role": "radio",
+  "name": "crop_16_9\n16:9"
+ },
+ {
+  "role": "radio",
+  "name": "crop_landscape\n4:3"
+ },
+ {
+  "role": "radio",
+  "name": "crop_square\n1:1"
+ },
+ {
+  "role": "radio",
+  "name": "crop_portrait\n3:4"
+ },
+ {
+  "role": "radio",
+  "name": "crop_9_16\n9:16"
+ },
+ {
+  "role": "radio",
+  "name": "x1"
+ },
+ {
+  "role": "radio",
+  "name": "x2"
+ },
+ {
+  "role": "radio",
+  "name": "x3"
+ },
+ {
+  "role": "radio",
+  "name": "x4"
+ },
+ {
+  "role": "button",
+  "name": "Modelo predeterminado de la generación de imágenes"
+ },
+ {
+  "role": "button",
+  "name": "Modelo predeterminado de generación de video"
+ },
+ {
+  "role": "button",
+  "name": "Guardar"
+ },
+ {
+  "role": "button",
+  "name": "Agregar ingredientes al cuadro de instrucción"
+ },
+ {
+  "role": "button",
+  "name": "Instrucciones del agente"
+ },
+ {
+  "role": "button",
+  "name": "Configuración"
+ },
+ {
+  "role": "button",
+  "name": "Botón de configuración"
+ },
+ {
+  "role": "button",
+  "name": "Iniciar generación"
+ }
+]
