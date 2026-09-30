@@ -25,8 +25,11 @@ log = get_logger("generate")
 
 OUTPUT_DIR = Path("output")
 DATA_ENDPOINT = "flow.google.com/_/AiSandboxAngularFrontend/data/"
-# Flow dejo este boton sin traducir (2026-09): aceptar ambos idiomas
-NEW_PROJECT_RE = re.compile(r"Proyecto nuevo|New project")
+# El boton cambio de "Proyecto nuevo" a "Nuevo proyecto" (2026-09) y su nombre accesible
+# lleva el icono delante ("add\nNuevo proyecto"): sin anclas, aceptar ambos ordenes e idiomas
+NEW_PROJECT_RE = re.compile(r"Proyecto nuevo|Nuevo proyecto|New project", re.I)
+# Boton de cierre del banner promocional (puede tapar el boton flotante)
+BANNER_CLOSE_RE = re.compile(r"^(Cerrar banner|Close banner|Dismiss)$", re.I)
 # "Configuracion" paso a llamarse "Ajustes" (2026-09)
 SETTINGS_RE = re.compile(r"^(Configuración|Ajustes)$")
 
@@ -55,8 +58,34 @@ async def _pause(page: Page, ms: int, stealth: bool) -> None:
         await page.wait_for_timeout(ms)
 
 
+async def dismiss_banner(page: Page) -> None:
+    """Cierra el banner promocional si esta; no bloqueante."""
+    try:
+        close = page.get_by_role("button", name=BANNER_CLOSE_RE)
+        if await close.count() > 0:
+            await close.first.click(timeout=3000)
+            await page.wait_for_timeout(500)
+    except Exception:
+        pass
+
+
+def new_project_button(page: Page):
+    """Boton de proyecto nuevo: por rol+nombre; si Flow cambia el rol, por texto."""
+    return page.get_by_role("button", name=NEW_PROJECT_RE).or_(page.get_by_text(NEW_PROJECT_RE)).first
+
+
+async def open_new_project(page: Page, stealth: bool = False) -> None:
+    """Click en 'Nuevo proyecto' tolerando el banner (lo cierra; si aun tapa, fuerza el click)."""
+    await dismiss_banner(page)
+    btn = new_project_button(page)
+    try:
+        await _click(page, btn, stealth)
+    except Exception:
+        await btn.click(force=True)
+
+
 async def new_project(page: Page, stealth: bool = False) -> None:
-    await _click(page, page.get_by_text(NEW_PROJECT_RE).first, stealth)
+    await open_new_project(page, stealth)
     await _pause(page, 6000, stealth)
 
 

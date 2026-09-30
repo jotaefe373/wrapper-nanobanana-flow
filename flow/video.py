@@ -36,7 +36,7 @@ from playwright.async_api import Page
 from core.config import settings
 from core.logger import get_logger
 from flow.credits import GenerationRejectedError, NoCreditsError
-from flow.generate import NEW_PROJECT_RE, SETTINGS_RE, ResultCapture, check_blockers
+from flow.generate import SETTINGS_RE, ResultCapture, check_blockers, open_new_project
 from flow.results import media_kind
 
 log = get_logger("video")
@@ -185,7 +185,7 @@ async def open_project(page: Page, url: str | None) -> str:
         await page.goto(url, wait_until="domcontentloaded")
         await page.wait_for_timeout(6000)
     else:
-        await page.get_by_text(NEW_PROJECT_RE).first.click()
+        await open_new_project(page)
         await page.wait_for_timeout(6000)
     if "/project/" not in page.url:
         raise RuntimeError(f"No quedo abierto un proyecto (url: {page.url.split('?')[0]})")

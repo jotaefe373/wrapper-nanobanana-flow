@@ -20,7 +20,7 @@ from playwright.async_api import Page
 
 from core.accounts import flow_url, rotation_order
 from core.logger import get_logger
-from flow.generate import NEW_PROJECT_RE, SETTINGS_RE
+from flow.generate import SETTINGS_RE, open_new_project
 
 log = get_logger("snapshot")
 
@@ -30,7 +30,7 @@ DATA_ENDPOINT = "flow.google.com/_/AiSandboxAngularFrontend/data/"
 # Selectores de los que dependen los macros. Fuente unica para health-check y snapshot.
 # kind: "role" (rol+nombre exacto; admite alternativas "A|B"), "css" (selector), "text" (texto visible).
 CRITICAL_SELECTORS = [
-    {"key": "proyecto_nuevo", "kind": "text", "value": "Proyecto nuevo|New project", "screen": "home",
+    {"key": "proyecto_nuevo", "kind": "role", "role": "button", "name": ".*(?:Proyecto nuevo|Nuevo proyecto|New project).*", "screen": "home",
      "why": "abrir un proyecto para generar"},
     {"key": "configuracion", "kind": "role", "role": "button", "name": "Configuración|Ajustes", "screen": "project",
      "why": "abrir aspecto/modelo"},
@@ -104,7 +104,7 @@ async def _present(page: Page, sel: dict) -> bool:
             return await page.locator(sel["value"]).count() > 0
         if sel["kind"] == "text":
             return await page.get_by_text(re.compile(sel["value"])).count() > 0
-        return await page.get_by_role(sel["role"], name=re.compile(f"^(?:{sel['name']})$")).count() > 0
+        return await page.get_by_role(sel["role"], name=re.compile(f"^(?:{sel['name']})$", re.S)).count() > 0
     except Exception:
         return False
 
@@ -125,7 +125,7 @@ async def health_check(page: Page, screens: tuple[str, ...] = ("home", "project"
         await page.wait_for_timeout(1500)
         await check("home")
         try:
-            await page.get_by_text(NEW_PROJECT_RE).first.click()
+            await open_new_project(page)
             await page.wait_for_timeout(6000)
         except Exception:
             log.warning("No se pudo abrir 'Proyecto nuevo' — la UI pudo cambiar")
@@ -164,7 +164,7 @@ async def capture(page: Page, out: Path, account: str) -> dict:
             report[sel["key"]] = await _present(page, sel)
 
     try:
-        await page.get_by_text(NEW_PROJECT_RE).first.click()
+        await open_new_project(page)
         await page.wait_for_timeout(6000)
         await snap("project")
         for sel in CRITICAL_SELECTORS:
