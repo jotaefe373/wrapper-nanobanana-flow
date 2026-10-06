@@ -20,15 +20,19 @@ from playwright.async_api import Page
 
 from core.accounts import flow_url, rotation_order
 from core.logger import get_logger
-from flow.generate import SETTINGS_RE, open_new_project
+from flow.generate import SETTINGS_RE, enter_prompt, open_new_project
 
 log = get_logger("snapshot")
 
 HISTORY_DIR = Path("history")
+# Prompt de prueba (multilinea a proposito: Enter envia el mensaje). Se escribe y no se dispara.
+PROBE_PROMPT = "Prueba de salud del wrapper.\n\nNo generes nada."
 DATA_ENDPOINT = "flow.google.com/_/AiSandboxAngularFrontend/data/"
 
 # Selectores de los que dependen los macros. Fuente unica para health-check y snapshot.
 # kind: "role" (rol+nombre exacto; admite alternativas "A|B"), "css" (selector), "text" (texto visible).
+# enabled: ademas debe estar habilitado. Los de "project" se chequean con un prompt ya escrito,
+# el mismo estado en que generate.verify_ready_to_generate los mira antes de disparar.
 CRITICAL_SELECTORS = [
     {"key": "proyecto_nuevo", "kind": "role", "role": "button", "name": ".*(?:Proyecto nuevo|Nuevo proyecto|New project).*", "screen": "home",
      "why": "abrir un proyecto para generar"},
@@ -37,7 +41,7 @@ CRITICAL_SELECTORS = [
     {"key": "editor_prompt", "kind": "css", "value": "[contenteditable=true]", "screen": "project",
      "why": "escribir el prompt"},
     {"key": "iniciar_generacion", "kind": "role", "role": "button", "name": "Iniciar generación", "screen": "project",
-     "why": "disparar la generacion (paso que gasta el credito)"},
+     "enabled": True, "why": "disparar la generacion (paso que gasta el credito)"},
     {"key": "descargar_media", "kind": "role", "role": "button", "name": "Descargar contenido multimedia",
      "screen": "editor", "why": "descarga classic (respaldo); no pre-chequeable sin imagen"},
 ]
@@ -104,7 +108,10 @@ async def _present(page: Page, sel: dict) -> bool:
             return await page.locator(sel["value"]).count() > 0
         if sel["kind"] == "text":
             return await page.get_by_text(re.compile(sel["value"])).count() > 0
-        return await page.get_by_role(sel["role"], name=re.compile(f"^(?:{sel['name']})$", re.S)).count() > 0
+        loc = page.get_by_role(sel["role"], name=re.compile(f"^(?:{sel['name']})$", re.S))
+        if not await loc.count():
+            return False
+        return await loc.first.is_enabled() if sel.get("enabled") else True
     except Exception:
         return False
 
@@ -130,8 +137,17 @@ async def health_check(page: Page, screens: tuple[str, ...] = ("home", "project"
         except Exception:
             log.warning("No se pudo abrir 'Proyecto nuevo' — la UI pudo cambiar")
     if "project" in screens:
+        await _write_probe(page)
         await check("project")
     return report
+
+
+async def _write_probe(page: Page) -> None:
+    """Deja el proyecto como lo deja el replay antes de disparar: con un prompt escrito."""
+    try:
+        await enter_prompt(page, PROBE_PROMPT)
+    except Exception as e:
+        log.warning("No se pudo escribir el prompt de prueba (%s)", str(e)[:60])
 
 
 def health_summary(report: dict) -> tuple[bool, list[str]]:
@@ -167,6 +183,7 @@ async def capture(page: Page, out: Path, account: str) -> dict:
         await open_new_project(page)
         await page.wait_for_timeout(6000)
         await snap("project")
+        await _write_probe(page)
         for sel in CRITICAL_SELECTORS:
             if sel["screen"] == "project":
                 report[sel["key"]] = await _present(page, sel)

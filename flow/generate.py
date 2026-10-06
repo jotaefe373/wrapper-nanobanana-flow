@@ -32,6 +32,8 @@ NEW_PROJECT_RE = re.compile(r"Proyecto nuevo|Nuevo proyecto|New project", re.I)
 BANNER_CLOSE_RE = re.compile(r"^(Cerrar banner|Close banner|Dismiss)$", re.I)
 # "Configuracion" paso a llamarse "Ajustes" (2026-09)
 SETTINGS_RE = re.compile(r"^(Configuración|Ajustes)$")
+# Con un mensaje en curso el boton de enviar pasa a "Detener"
+STOP_RE = re.compile(r"^(Detener|Stop)$")
 
 _PICK_IMAGES_JS = """() => [...document.querySelectorAll('img')]
     .map(i => ({src: i.currentSrc || i.src, w: i.naturalWidth, h: i.naturalHeight, rw: i.width, rh: i.height}))
@@ -106,9 +108,15 @@ async def set_image_defaults(page: Page, aspect: str = "1:1", count: str = "x1",
 
 
 async def enter_prompt(page: Page, prompt: str, stealth: bool = False) -> None:
+    """Escribe el prompt sin enviarlo.
+
+    En el chat del agente Enter envia el mensaje: con keyboard.type un prompt
+    multilinea salia cortado en el primer salto y el boton pasaba a 'Detener'.
+    insert_text no emite teclas, asi que los saltos quedan como parrafos.
+    """
     editor = page.locator("[contenteditable=true]").first
     await _click(page, editor, stealth)
-    await page.keyboard.type(prompt)
+    await page.keyboard.insert_text(prompt)
     await _pause(page, 1000, stealth)
 
 
@@ -406,6 +414,11 @@ async def verify_ready_to_generate(page: Page) -> None:
             except Exception as e:
                 log.warning("Auto-snapshot fallo (%s)", str(e)[:60])
 
+    if await page.get_by_role("button", name=STOP_RE).count():
+        raise RuntimeError(
+            "El prompt se envio antes de disparar (el agente ya esta 'Pensando'): "
+            "revisa como se escribe el prompt (Enter envia el mensaje)."
+        )
     missing = [k for k, present in current.items() if not present]
     if missing:
         raise RuntimeError(
