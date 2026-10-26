@@ -91,11 +91,30 @@ async def new_project(page: Page, stealth: bool = False) -> None:
     await _pause(page, 6000, stealth)
 
 
+async def open_settings(page: Page, stealth: bool = False) -> None:
+    """Abre la Configuracion del generador (la que tiene 'Guardar').
+
+    El encabezado tiene otro boton 'Ajustes' (vista Cuadricula/Lote): se prueba cada
+    candidato y se cierra con Escape el que no abre la Configuracion.
+    """
+    candidates = page.get_by_role("button", name=SETTINGS_RE)
+    for i in range(await candidates.count()):
+        btn = candidates.nth(i)
+        if not await btn.is_visible():
+            continue
+        await _click(page, btn, stealth)
+        await _pause(page, 2000, stealth)
+        if await page.get_by_role("button", name="Guardar").count():
+            return
+        await page.keyboard.press("Escape")
+        await page.wait_for_timeout(500)
+    raise RuntimeError("ningun boton de Configuracion abrio el dialogo con 'Guardar'")
+
+
 async def set_image_defaults(page: Page, aspect: str = "1:1", count: str = "x1", stealth: bool = False) -> None:
     """Fija en Configuracion: sin confirmacion, aspecto y cantidad. No bloqueante."""
     try:
-        await _click(page, page.get_by_role("button", name=SETTINGS_RE), stealth)
-        await _pause(page, 2000, stealth)
+        await open_settings(page, stealth)
         for name in (aspect, count):
             try:
                 await page.get_by_role("radio", name=re.compile(rf"{re.escape(name)}$")).first.click(timeout=5000)
@@ -316,8 +335,7 @@ async def set_video_defaults(page: Page, model: str | None = None, stealth: bool
     """Fija el modelo de generacion de video en Configuracion. No bloqueante."""
     model = model or settings.video_model
     try:
-        await _click(page, page.get_by_role("button", name=SETTINGS_RE), stealth)
-        await _pause(page, 2000, stealth)
+        await open_settings(page, stealth)
         try:
             await page.get_by_role("button", name=re.compile(r"Modelo predeterminado de generación de v[ií]deo")).click(timeout=5000)
             await page.wait_for_timeout(1200)
